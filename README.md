@@ -199,6 +199,20 @@ npm run dev
 - **Lazy Loading**: Components load only when needed
 - **Optimized Updates**: Minimal re-renders through Vue's reactivity system
 
+## 📦 Build
+
+### Desktop App
+
+- **Electron**: Build a desktop app using Electron.
+
+- Check the [Electron documentation](https://www.electronjs.org/docs/latest) for more information.
+
+- **Important**: The build command will create a `release` folder with the compiled application.
+
+```bash
+npm run electron:build
+```
+
 ## 🔮 Future Enhancements
 
 The application is designed with extensibility in mind. Potential future features include:
@@ -209,7 +223,6 @@ The application is designed with extensibility in mind. Potential future feature
 - **Advanced Search**: Search by dates, locations, or relationships
 - **Export Formats**: PDF, GEDCOM, or other genealogy formats
 - **Undo/Redo**: Action history and reversal capabilities
-- **Desktop App**: Build a desktop app using Electron
 
 ## 🤝 Contributing
 
