@@ -204,7 +204,10 @@ npm run dev
 ### Desktop App
 
 - **Electron**: Build a desktop app using Electron.
+
 - Check the [Electron documentation](https://www.electronjs.org/docs/latest) for more information.
+
+- **Important**: The build command will create a `release` folder with the compiled application.
 
 ```bash
 npm run electron:build
