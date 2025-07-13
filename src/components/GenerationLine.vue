@@ -11,20 +11,12 @@
           >
             <div class="member-info" @click="setAsMainMember(mainMember)">
               <MemberCardContent :member="mainMember" />
-              <div class="member-actions">
-                <ActionButton
-                  action="info"
-                  @click.stop="showMemberInfo(mainMember)"
-                />
-                <ActionButton
-                  action="edit"
-                  @click.stop="editMember(mainMember)"
-                />
-                <ActionButton
-                  action="delete"
-                  @click.stop="deleteMember(mainMember)"
-                />
-              </div>
+              <MemberActions
+                :member="mainMember"
+                @info="showMemberInfo"
+                @edit="editMember"
+                @delete="deleteMember"
+              />
             </div>
 
             <!-- Navigation button -->
@@ -47,20 +39,12 @@
             <div class="member-card" :class="{ selected: isSelected(spouse) }">
               <div class="member-info" @click="setAsMainMember(spouse)">
                 <MemberCardContent :member="spouse" />
-                <div class="member-actions">
-                  <ActionButton
-                    action="info"
-                    @click.stop="showMemberInfo(spouse)"
-                  />
-                  <ActionButton
-                    action="edit"
-                    @click.stop="editMember(spouse)"
-                  />
-                  <ActionButton
-                    action="delete"
-                    @click.stop="deleteMember(spouse)"
-                  />
-                </div>
+                <MemberActions
+                  :member="spouse"
+                  @info="showMemberInfo"
+                  @edit="editMember"
+                  @delete="deleteMember"
+                />
               </div>
 
               <!-- Navigation button for spouse -->
@@ -98,20 +82,12 @@
               >
                 <div class="member-info" @click="setAsMainMember(member)">
                   <MemberCardContent :member="member" />
-                  <div class="member-actions">
-                    <ActionButton
-                      action="info"
-                      @click.stop="showMemberInfo(member)"
-                    />
-                    <ActionButton
-                      action="edit"
-                      @click.stop="editMember(member)"
-                    />
-                    <ActionButton
-                      action="delete"
-                      @click.stop="deleteMember(member)"
-                    />
-                  </div>
+                  <MemberActions
+                    :member="member"
+                    @info="showMemberInfo"
+                    @edit="editMember"
+                    @delete="deleteMember"
+                  />
                 </div>
 
                 <!-- Navigation to children -->
@@ -133,7 +109,7 @@
 import { computed } from 'vue'
 import { Member } from '@/types'
 import MemberCardContent from './MemberCardContent.vue'
-import ActionButton from './ActionButton.vue'
+import MemberActions from './MemberActions.vue'
 import MoveInTreeButton from './MoveInTreeButton.vue'
 
 interface Props {
