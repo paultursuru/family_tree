@@ -8,7 +8,7 @@
       @show-add-form="showAddForm = true"
       @confirm-destroy-all="confirmDestroyAll"
       @open-settings="openSettings"
-      @search-members="searchMembers"
+      @search-members="handleSearchMembers"
       @select-member="selectMember"
       @select-member-from-search="selectMemberFromSearch"
       :search-results="searchResults"
@@ -291,6 +291,7 @@ import {
 import { useFileOperations } from '@/composables/useFileOperations'
 import { useMemberInfo } from '@/composables/useMemberInfo'
 import { useDataPersistence } from '@/composables/useDataPersistence'
+import { useSearch } from '@/composables/useSearch'
 import Header from '@/components/Header.vue'
 import FamilyTree from '@/components/FamilyTree.vue'
 import MemberDetail from '@/components/MemberDetail.vue'
@@ -348,6 +349,7 @@ const {
   getFamilyData,
   setFamilyData,
 } = useDataPersistence()
+const { searchMembers, updateSearchResults } = useSearch()
 
 // Load data from localStorage or default
 onMounted(() => {
@@ -449,18 +451,11 @@ const addUnion = () => {
 }
 
 const handleSaveUnion = (formData: UnionFormData) => {
-  console.log('saveUnion called with:', formData)
-
   // Check if we're editing an existing union (has real ID) or creating new one
   const isEditingExisting = editingUnion.value && editingUnion.value.id > 0
 
   // Use the composable to save the union
-  const union = saveUnion(formData, isEditingExisting)
-
-  console.log('Updated unions array:', {
-    totalUnions: unions.value.length,
-    isEditingExisting,
-  })
+  saveUnion(formData, isEditingExisting)
 
   saveToLocalStorage()
   closeUnionModal()
@@ -520,11 +515,12 @@ const destroyAllMembers = () => {
   familyTreeRef.value?.reset()
 }
 
-const searchMembers = (query: string) => {
-  searchResults.value = getAllMembers().filter((member) => {
-    return getFullName(member).toLowerCase().includes(query.toLowerCase())
+const handleSearchMembers = (query: string) => {
+  const results = searchMembers(getAllMembers(), query, {
+    includeMaidenName: true,
+    includeMiddleNames: true,
   })
-  console.log('Search results:', searchResults.value)
+  searchResults.value = results
 }
 
 // Settings functions

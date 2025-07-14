@@ -27,7 +27,7 @@
           @click="selectUnion(union)"
           @mouseenter="highlightedIndex = index"
         >
-          <div class="option-name">{{ getUnionDisplayName(union) }}</div>
+          <div class="option-name">{{ getLocalUnionDisplayName(union) }}</div>
           <div class="option-details">
             {{ union.childrenIds?.length || 0 }} children
           </div>
@@ -39,7 +39,7 @@
     <div v-if="selectedUnion" class="selected-items">
       <div class="selected-item">
         <span class="selected-item-name">{{
-          getUnionDisplayName(selectedUnion)
+          getLocalUnionDisplayName(selectedUnion)
         }}</span>
         <button
           @click="clearSelection"
@@ -68,6 +68,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { Union, Member } from '@/types'
+import { useSearch } from '@/composables/useSearch'
 
 interface Props {
   modelValue: number | undefined | null
@@ -90,6 +91,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+// Use the search composable
+const { searchUnions, getUnionDisplayName } = useSearch()
+
 const inputRef = ref<HTMLInputElement>()
 const searchQuery = ref('')
 const showDropdown = ref(false)
@@ -107,7 +111,7 @@ const selectedUnion = computed(() => {
 const displayValue = computed({
   get() {
     if (selectedUnion.value) {
-      return getUnionDisplayName(selectedUnion.value)
+      return getUnionDisplayName(selectedUnion.value, props.members)
     }
     return searchQuery.value
   },
@@ -117,43 +121,24 @@ const displayValue = computed({
 })
 
 const filteredUnions = computed(() => {
-  const query = searchQuery.value.toLowerCase()
+  const query = searchQuery.value
 
-  return props.unions
-    .filter((union) => {
-      // Exclude unions in excludeIds
-      if (props.excludeIds.includes(union.id.toString())) return false
-
-      // Filter by search query
-      if (query) {
-        const displayName = getUnionDisplayName(union).toLowerCase()
-        return displayName.includes(query)
-      }
-
-      return true
-    })
-    .slice(0, 10) // Limit to 10 results
+  // Use the search composable for filtering unions
+  return searchUnions(props.unions, props.members, query, {
+    excludeIds: props.excludeIds,
+    limit: 10,
+  })
 })
 
-const getUnionDisplayName = (union: Union) => {
-  const member1 = props.members.find((m) => m.id === union.member1Id)
-  const member2 = props.members.find((m) => m.id === union.member2Id)
-
-  const member1Name = member1
-    ? `${member1.firstName} ${member1.lastName}`
-    : 'Unknown'
-  const member2Name = member2
-    ? `${member2.firstName} ${member2.lastName}`
-    : 'Unknown'
-
-  return `${member1Name} & ${member2Name}`
+const getLocalUnionDisplayName = (union: Union) => {
+  return getUnionDisplayName(union, props.members)
 }
 
 const handleInput = () => {
   // If user starts typing and there's a selected union, clear the selection
   if (
     selectedUnion.value &&
-    searchQuery.value !== getUnionDisplayName(selectedUnion.value)
+    searchQuery.value !== getLocalUnionDisplayName(selectedUnion.value)
   ) {
     emit('update:modelValue', null)
   }

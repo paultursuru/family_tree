@@ -111,8 +111,6 @@ const getMemberName = (memberId: number) => {
 }
 
 const handleSubmit = () => {
-  console.log('UnionForm handleSubmit called with form data:', form.value)
-
   // Validate that both members are selected
   if (!form.value.member1Id || !form.value.member2Id) {
     console.error('Both members must be selected')
@@ -126,7 +124,6 @@ const handleSubmit = () => {
     return
   }
 
-  console.log('Form validation passed, emitting save event')
   emit('save', { ...form.value })
 }
 </script>
