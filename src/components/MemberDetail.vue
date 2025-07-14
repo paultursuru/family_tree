@@ -318,6 +318,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { Member, Union } from '@/types'
+import { useMemberUtils } from '@/composables/useMemberUtils'
 import UnionForm from './UnionForm.vue'
 
 interface Props {
@@ -336,6 +337,9 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+// Use the member utils composable
+const { getFullName, getInitials } = useMemberUtils()
 
 const fullName = computed(() => {
   if (!props.member) return ''
@@ -468,18 +472,6 @@ const stepSiblings = computed(() => {
   })
 })
 
-const getFullName = (member: Member) => {
-  const middleNames =
-    member.middleNames && member.middleNames.length > 0
-      ? ` ${member.middleNames.join(' ')}`
-      : ''
-  return `${member.firstName}${middleNames} ${member.lastName}`
-}
-
-const getInitials = (member: Member) => {
-  return `${member.firstName.charAt(0)}${member.lastName.charAt(0)}`
-}
-
 const getBirthDeathInfo = (member: Member) => {
   if (member.isAlive) {
     return member.birthDate
@@ -498,7 +490,12 @@ const formatDate = (dateString: string) => {
 
 const getMemberName = (memberId: number) => {
   const member = props.members.find((m) => m.id === memberId)
-  return member ? getFullName(member) : 'Unknown Member'
+  return member
+    ? getFullName(member, {
+        includeMaidenName: true,
+        includeMiddleNames: true,
+      })
+    : 'Unknown Member'
 }
 
 const getUnionPartnerName = (union: Union) => {

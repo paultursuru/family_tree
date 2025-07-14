@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Member } from '@/types'
 import { ref, computed } from 'vue'
+import { useMemberUtils } from '@/composables/useMemberUtils'
 
 interface Props {
   showAddForm: boolean
@@ -20,6 +21,9 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+// Use the member utils composable
+const { getFullName } = useMemberUtils()
 
 const searchQuery = ref('')
 const showSearchResults = ref(false)
@@ -60,12 +64,6 @@ const selectMember = (member: Member) => {
   emit('select-member-from-search', member)
   searchQuery.value = ''
   showSearchResults.value = false
-}
-
-const getFullName = (member: Member) => {
-  const middleNames =
-    member.middleNames.length > 0 ? ` ${member.middleNames.join(' ')}` : ''
-  return `${member.firstName}${middleNames} ${member.lastName}`
 }
 
 const shouldShowResults = computed(() => {

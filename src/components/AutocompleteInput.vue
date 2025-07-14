@@ -91,6 +91,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { Member } from '@/types'
+import { useMemberUtils } from '@/composables/useMemberUtils'
 
 interface Props {
   modelValue: string[] | string | number | number[] | undefined | null
@@ -116,6 +117,9 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+
+// Use the member utils composable
+const { getFullName } = useMemberUtils()
 
 const inputRef = ref<HTMLInputElement>()
 const searchQuery = ref('')
@@ -187,14 +191,6 @@ const filteredOptions = computed(() => {
     })
     .slice(0, 10) // Limit to 10 results
 })
-
-const getFullName = (member: Member) => {
-  const middleNames =
-    member.middleNames && member.middleNames.length > 0
-      ? ` ${member.middleNames.join(' ')}`
-      : ''
-  return `${member.firstName}${middleNames} ${member.lastName}`
-}
 
 const handleInput = () => {
   // For single selection, if user starts typing and there's a selected item, clear the selection

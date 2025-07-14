@@ -58,6 +58,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { Member, Union } from '@/types'
+import { useMemberUtils } from '@/composables/useMemberUtils'
 
 interface AnniversaryInfo {
   id: string
@@ -89,28 +90,11 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+// Use the member utils composable
+const { getFullName } = useMemberUtils()
+
 const closeDrawer = () => {
   emit('close')
-}
-
-const getFullName = (
-  member: Member,
-  options?: { includeMaidenName?: boolean; includeMiddleNames?: boolean },
-): string => {
-  const names = [member.firstName]
-
-  if (options?.includeMiddleNames && member.middleNames.length > 0) {
-    names.push(...member.middleNames)
-  }
-
-  if (member.lastName) {
-    names.push(member.lastName)
-  }
-
-  if (options?.includeMaidenName && member.maidenName) {
-    names.push(member.maidenName)
-  }
-  return names.filter((name) => name.trim()).join(' ')
 }
 
 const formatDate = (date: Date): string => {

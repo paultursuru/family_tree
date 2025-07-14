@@ -289,6 +289,7 @@ import {
   FamilyData,
 } from '@/types'
 import { useFileOperations } from '@/composables/useFileOperations'
+import { useMemberUtils } from '@/composables/useMemberUtils'
 import Header from '@/components/Header.vue'
 import FamilyTree from '@/components/FamilyTree.vue'
 import MemberDetail from '@/components/MemberDetail.vue'
@@ -330,6 +331,9 @@ const anniversarySettings = ref({
 // File operations composable
 const { fileInput, exportToJson, importFromJson, handleFileImport } =
   useFileOperations()
+
+// Member utils composable
+const { getFullName } = useMemberUtils()
 
 // Load data from localStorage or default
 onMounted(() => {
@@ -753,12 +757,6 @@ const saveMember = (formData: MemberFormData) => {
 const closeModal = () => {
   showAddForm.value = false
   editingMember.value = null
-}
-
-const getFullName = (member: Member) => {
-  const middleNames =
-    member.middleNames.length > 0 ? ` ${member.middleNames.join(' ')}` : ''
-  return `${member.firstName}${middleNames} ${member.lastName}`
 }
 
 const handleFileImportSuccess = (familyData: FamilyData) => {
