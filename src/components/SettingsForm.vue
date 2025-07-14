@@ -20,6 +20,75 @@
         </div>
       </div>
 
+      <!-- Anniversary Settings -->
+      <div class="form-section">
+        <h3 class="section-title">📅 Anniversary Display</h3>
+        <p class="form-hint">
+          Choose which types of anniversaries to display in the anniversary
+          drawer.
+        </p>
+        <div class="mt-4 space-y-3">
+          <div class="anniversary-option">
+            <label class="anniversary-option-label">
+              <input
+                v-model="form.showBirthdays"
+                type="checkbox"
+                class="form-checkbox"
+              />
+              <div class="flex items-center m-auto">
+                <div>
+                  <span class="text-lg pr-2">🎂</span>
+                  <span class="font-medium text-gray-100">Birthdays</span>
+                  <p class="text-sm text-gray-400">
+                    Show upcoming birthdays with ages
+                  </p>
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <div class="anniversary-option">
+            <label class="anniversary-option-label">
+              <input
+                v-model="form.showMarriages"
+                type="checkbox"
+                class="form-checkbox"
+              />
+              <div class="flex items-center m-auto">
+                <div>
+                  <span class="text-lg pr-2">💍</span>
+                  <span class="font-medium text-gray-100"
+                    >Marriage Anniversaries</span
+                  >
+                  <p class="text-sm text-gray-400">
+                    Show upcoming marriage anniversaries
+                  </p>
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <div class="anniversary-option">
+            <label class="anniversary-option-label">
+              <input
+                v-model="form.showDeaths"
+                type="checkbox"
+                class="form-checkbox"
+              />
+              <div class="flex items-center m-auto">
+                <div>
+                  <span class="text-lg pr-2">😢</span>
+                  <span class="font-medium text-gray-100">Memorial Dates</span>
+                  <p class="text-sm text-gray-400">
+                    Show upcoming memorial dates for deceased members
+                  </p>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <!-- Form Actions -->
       <div class="form-actions">
         <button type="button" @click="$emit('cancel')" class="btn-secondary">
@@ -38,6 +107,9 @@ import AutocompleteInput from './AutocompleteInput.vue'
 
 interface SettingsFormData {
   defaultMemberId?: number | null
+  showBirthdays?: boolean
+  showMarriages?: boolean
+  showDeaths?: boolean
 }
 
 interface Props {
@@ -55,6 +127,9 @@ const emit = defineEmits<Emits>()
 
 const form = ref<SettingsFormData>({
   defaultMemberId: null,
+  showBirthdays: true,
+  showMarriages: false,
+  showDeaths: false,
 })
 
 // Initialize form when settings change
@@ -64,6 +139,9 @@ watch(
     if (settings) {
       form.value = {
         defaultMemberId: settings.defaultMemberId,
+        showBirthdays: settings.showBirthdays ?? true,
+        showMarriages: settings.showMarriages ?? false,
+        showDeaths: settings.showDeaths ?? false,
       }
     }
   },
@@ -102,6 +180,18 @@ const handleSubmit = () => {
 
 .form-radio {
   @apply h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300;
+}
+
+.form-checkbox {
+  @apply h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded;
+}
+
+.anniversary-option {
+  @apply p-3 rounded-lg border border-gray-600 hover:bg-gray-700 transition-colors;
+}
+
+.anniversary-option-label {
+  @apply flex items-center cursor-pointer;
 }
 
 .form-actions {

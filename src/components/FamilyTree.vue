@@ -49,6 +49,7 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
 import { Member, Union } from '@/types'
+import { useMemberUtils } from '@/composables/useMemberUtils'
 import GenerationLine from './GenerationLine.vue'
 
 interface Props {
@@ -65,6 +66,9 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+// Use the member utils composable
+const { getFullName } = useMemberUtils()
 
 // Navigation state
 const currentFocusMember = ref<Member | null>(null)
@@ -221,14 +225,6 @@ const reset = () => {
   currentFocusMember.value = null
   currentMainMember.value = null
   navigationHistory.value = []
-}
-
-const getFullName = (member: Member) => {
-  const middleNames =
-    member.middleNames && member.middleNames.length > 0
-      ? ` ${member.middleNames.join(' ')}`
-      : ''
-  return `${member.firstName}${middleNames} ${member.lastName}`
 }
 
 // Initialize the tree when component mounts or members change

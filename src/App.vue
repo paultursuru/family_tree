@@ -14,6 +14,12 @@
       :search-results="searchResults"
     />
 
+    <!-- Anniversary Toggle Button -->
+    <AnniversaryToggleButton
+      :is-open="showAnniversaryDrawer"
+      @toggle="toggleAnniversaryDrawer"
+    />
+
     <!-- Main Content - Full Screen Family Tree -->
     <main class="app-main">
       <div class="tree-fullscreen">
@@ -259,6 +265,17 @@
         </div>
       </div>
     </div>
+
+    <!-- Anniversary Drawer -->
+    <AnniversaryDrawer
+      :members="members"
+      :unions="unions"
+      :is-open="showAnniversaryDrawer"
+      :show-birthdays="settings.showBirthdays"
+      :show-marriages="settings.showMarriages"
+      :show-deaths="settings.showDeaths"
+      @close="closeAnniversaryDrawer"
+    />
   </div>
 </template>
 
@@ -272,6 +289,7 @@ import {
   FamilyData,
 } from '@/types'
 import { useFileOperations } from '@/composables/useFileOperations'
+import { useMemberUtils } from '@/composables/useMemberUtils'
 import Header from '@/components/Header.vue'
 import FamilyTree from '@/components/FamilyTree.vue'
 import MemberDetail from '@/components/MemberDetail.vue'
@@ -279,6 +297,8 @@ import MemberForm from '@/components/MemberForm.vue'
 import UnionForm from '@/components/UnionForm.vue'
 import FormModal from '@/components/FormModal.vue'
 import SettingsForm from '@/components/SettingsForm.vue'
+import AnniversaryDrawer from '@/components/AnniversaryDrawer.vue'
+import AnniversaryToggleButton from '@/components/AnniversaryToggleButton.vue'
 
 // State
 const members = ref<Member[]>([])
@@ -298,11 +318,20 @@ const searchResults = ref<Member[]>([])
 const settings = ref({
   defaultMemberId: null as number | null,
   showDates: true,
+  showBirthdays: true,
+  showMarriages: false,
+  showDeaths: false,
 })
+
+// Anniversary drawer state
+const showAnniversaryDrawer = ref(false)
 
 // File operations composable
 const { fileInput, exportToJson, importFromJson, handleFileImport } =
   useFileOperations()
+
+// Member utils composable
+const { getFullName } = useMemberUtils()
 
 // Load data from localStorage or default
 onMounted(() => {
@@ -318,7 +347,15 @@ onMounted(() => {
   // Load settings
   const savedSettings = localStorage.getItem('family-settings')
   if (savedSettings) {
-    settings.value = { ...settings.value, ...JSON.parse(savedSettings) }
+    const parsedSettings = JSON.parse(savedSettings)
+    settings.value = {
+      ...settings.value,
+      ...parsedSettings,
+      // Ensure anniversary settings have defaults
+      showBirthdays: parsedSettings.showBirthdays ?? true,
+      showMarriages: parsedSettings.showMarriages ?? false,
+      showDeaths: parsedSettings.showDeaths ?? false,
+    }
   }
 
   // Set default selected member if specified
@@ -728,12 +765,6 @@ const closeModal = () => {
   editingMember.value = null
 }
 
-const getFullName = (member: Member) => {
-  const middleNames =
-    member.middleNames.length > 0 ? ` ${member.middleNames.join(' ')}` : ''
-  return `${member.firstName}${middleNames} ${member.lastName}`
-}
-
 const handleFileImportSuccess = (familyData: FamilyData) => {
   members.value = familyData.members
   unions.value = familyData.unions
@@ -785,6 +816,15 @@ const saveSettings = (newSettings: any) => {
   settings.value = { ...settings.value, ...newSettings }
   localStorage.setItem('family-settings', JSON.stringify(settings.value))
   closeSettingsModal()
+}
+
+// Anniversary drawer methods
+const toggleAnniversaryDrawer = () => {
+  showAnniversaryDrawer.value = !showAnniversaryDrawer.value
+}
+
+const closeAnniversaryDrawer = () => {
+  showAnniversaryDrawer.value = false
 }
 </script>
 
