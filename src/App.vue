@@ -271,9 +271,9 @@
       :members="members"
       :unions="unions"
       :is-open="showAnniversaryDrawer"
-      :show-birthdays="anniversarySettings.showBirthdays"
-      :show-marriages="anniversarySettings.showMarriages"
-      :show-deaths="anniversarySettings.showDeaths"
+      :show-birthdays="settings.showBirthdays"
+      :show-marriages="settings.showMarriages"
+      :show-deaths="settings.showDeaths"
       @close="closeAnniversaryDrawer"
     />
   </div>
@@ -318,15 +318,13 @@ const searchResults = ref<Member[]>([])
 const settings = ref({
   defaultMemberId: null as number | null,
   showDates: true,
-})
-
-// Anniversary drawer state
-const showAnniversaryDrawer = ref(false)
-const anniversarySettings = ref({
   showBirthdays: true,
   showMarriages: false,
   showDeaths: false,
 })
+
+// Anniversary drawer state
+const showAnniversaryDrawer = ref(false)
 
 // File operations composable
 const { fileInput, exportToJson, importFromJson, handleFileImport } =
@@ -349,7 +347,15 @@ onMounted(() => {
   // Load settings
   const savedSettings = localStorage.getItem('family-settings')
   if (savedSettings) {
-    settings.value = { ...settings.value, ...JSON.parse(savedSettings) }
+    const parsedSettings = JSON.parse(savedSettings)
+    settings.value = {
+      ...settings.value,
+      ...parsedSettings,
+      // Ensure anniversary settings have defaults
+      showBirthdays: parsedSettings.showBirthdays ?? true,
+      showMarriages: parsedSettings.showMarriages ?? false,
+      showDeaths: parsedSettings.showDeaths ?? false,
+    }
   }
 
   // Set default selected member if specified
