@@ -14,6 +14,12 @@
       :search-results="searchResults"
     />
 
+    <!-- Anniversary Toggle Button -->
+    <AnniversaryToggleButton
+      :is-open="showAnniversaryDrawer"
+      @toggle="toggleAnniversaryDrawer"
+    />
+
     <!-- Main Content - Full Screen Family Tree -->
     <main class="app-main">
       <div class="tree-fullscreen">
@@ -259,6 +265,17 @@
         </div>
       </div>
     </div>
+
+    <!-- Anniversary Drawer -->
+    <AnniversaryDrawer
+      :members="members"
+      :unions="unions"
+      :is-open="showAnniversaryDrawer"
+      :show-birthdays="anniversarySettings.showBirthdays"
+      :show-marriages="anniversarySettings.showMarriages"
+      :show-deaths="anniversarySettings.showDeaths"
+      @close="closeAnniversaryDrawer"
+    />
   </div>
 </template>
 
@@ -279,6 +296,8 @@ import MemberForm from '@/components/MemberForm.vue'
 import UnionForm from '@/components/UnionForm.vue'
 import FormModal from '@/components/FormModal.vue'
 import SettingsForm from '@/components/SettingsForm.vue'
+import AnniversaryDrawer from '@/components/AnniversaryDrawer.vue'
+import AnniversaryToggleButton from '@/components/AnniversaryToggleButton.vue'
 
 // State
 const members = ref<Member[]>([])
@@ -298,6 +317,14 @@ const searchResults = ref<Member[]>([])
 const settings = ref({
   defaultMemberId: null as number | null,
   showDates: true,
+})
+
+// Anniversary drawer state
+const showAnniversaryDrawer = ref(false)
+const anniversarySettings = ref({
+  showBirthdays: true,
+  showMarriages: false,
+  showDeaths: false,
 })
 
 // File operations composable
@@ -785,6 +812,15 @@ const saveSettings = (newSettings: any) => {
   settings.value = { ...settings.value, ...newSettings }
   localStorage.setItem('family-settings', JSON.stringify(settings.value))
   closeSettingsModal()
+}
+
+// Anniversary drawer methods
+const toggleAnniversaryDrawer = () => {
+  showAnniversaryDrawer.value = !showAnniversaryDrawer.value
+}
+
+const closeAnniversaryDrawer = () => {
+  showAnniversaryDrawer.value = false
 }
 </script>
 
