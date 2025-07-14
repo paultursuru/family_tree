@@ -124,7 +124,7 @@
               <div class="union-info">
                 <div class="union-members">
                   <span class="union-member">{{
-                    getUnionPartnerName(union)
+                    getUnionPartnerDisplayName(union, member, props.members)
                   }}</span>
                 </div>
                 <div class="union-dates">
@@ -318,8 +318,9 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { Member, Union } from '@/types'
-import { useMemberUtils } from '@/composables/useMemberUtils'
-import UnionForm from './UnionForm.vue'
+import { useMemberInfo } from '@/composables/useMemberInfo'
+import { useRelationships } from '@/composables/useRelationships'
+import { useDateUtils } from '@/composables/useDateUtils'
 
 interface Props {
   member?: Member
@@ -338,155 +339,72 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// Use the member utils composable
-const { getFullName, getInitials } = useMemberUtils()
+// Use the member info composable
+const {
+  getFullName,
+  getInitials,
+  getStatusText,
+  getBirthDeathInfo,
+  getFullNameWithMiddle,
+  getMemberInitials,
+} = useMemberInfo()
+
+// Use the relationships composable
+const {
+  getParents,
+  getChildren,
+  getDirectSiblings,
+  getStepSiblings,
+  getMemberUnions,
+  getUnionPartnerName: getUnionPartnerDisplayName,
+} = useRelationships()
+
+const { formatDate } = useDateUtils()
 
 const fullName = computed(() => {
   if (!props.member) return ''
-  const member = props.member
-  const middleNames =
-    member.middleNames.length > 0 ? ` ${member.middleNames.join(' ')}` : ''
-  return `${member.firstName}${middleNames} ${member.lastName}`
+  return getFullNameWithMiddle(props.member)
 })
 
 const initials = computed(() => {
   if (!props.member) return ''
-  const member = props.member
-  return `${member.firstName.charAt(0)}${member.lastName.charAt(0)}`
+  return getMemberInitials(props.member)
 })
 
 const statusText = computed(() => {
   if (!props.member) return ''
-  return props.member.isAlive ? 'Living' : 'Deceased'
+  return getStatusText(props.member)
 })
 
 const birthDeathInfo = computed(() => {
   if (!props.member) return ''
-  const member = props.member
-  if (member.isAlive) {
-    return member.birthDate
-      ? `Born ${formatDate(member.birthDate)}`
-      : 'Birth date unknown'
-  } else {
-    const birth = member.birthDate ? formatDate(member.birthDate) : '?'
-    const death = member.deathDate ? formatDate(member.deathDate) : '?'
-    return `${birth} - ${death}`
-  }
+  return getBirthDeathInfo(props.member, 'year')
 })
 
 const parents = computed(() => {
-  if (!props.member || !props.member.parentUnionId) return []
-
-  const parentUnion = props.unions.find(
-    (u) => u.id === props.member!.parentUnionId,
-  )
-  if (!parentUnion) return []
-
-  const parent1 = props.members.find((m) => m.id === parentUnion.member1Id)
-  const parent2 = props.members.find((m) => m.id === parentUnion.member2Id)
-
-  return [parent1, parent2].filter((p): p is Member => !!p)
+  if (!props.member) return []
+  return getParents(props.member, props.unions, props.members)
 })
 
 const children = computed(() => {
   if (!props.member) return []
-
-  // Find unions that involve the current member
-  const memberUnions = props.unions.filter(
-    (union) =>
-      union.member1Id === props.member!.id ||
-      union.member2Id === props.member!.id,
-  )
-
-  // Get all children from these unions
-  const childIds = new Set<number>()
-  memberUnions.forEach((union) => {
-    if (union.childrenIds && Array.isArray(union.childrenIds)) {
-      union.childrenIds.forEach((childId) => childIds.add(childId))
-    }
-  })
-
-  // Return the actual member objects
-  return props.members.filter((member) => childIds.has(member.id))
+  return getChildren(props.member, props.unions, props.members)
 })
 
 const unions = computed(() => {
   if (!props.member) return []
-  return props.unions.filter(
-    (union) =>
-      union.member1Id === props.member!.id ||
-      union.member2Id === props.member!.id,
-  )
+  return getMemberUnions(props.member, props.unions)
 })
 
 const directSiblings = computed(() => {
-  if (!props.member || !props.member.parentUnionId) return []
-
-  const member = props.member
-
-  return props.members.filter((sibling) => {
-    // Skip self
-    if (sibling.id === member.id) return false
-
-    // Check if they share the same parent union (direct/full siblings)
-    return sibling.parentUnionId === member.parentUnionId
-  })
+  if (!props.member) return []
+  return getDirectSiblings(props.member, props.members)
 })
 
 const stepSiblings = computed(() => {
-  if (!props.member || !props.member.parentUnionId) return []
-
-  const member = props.member
-  const memberParentUnion = props.unions.find(
-    (u) => u.id === member.parentUnionId,
-  )
-  if (!memberParentUnion) return []
-
-  return props.members.filter((sibling) => {
-    // Skip self
-    if (sibling.id === member.id) return false
-
-    // Skip direct siblings (they're handled separately)
-    if (sibling.parentUnionId === member.parentUnionId) return false
-
-    // Check if they share one parent through a different union
-    const siblingParentUnion = sibling.parentUnionId
-      ? props.unions.find((u) => u.id === sibling.parentUnionId)
-      : null
-    if (!siblingParentUnion) return false
-
-    // They share one parent if their parent unions have a member in common
-    const memberParentIds = [
-      memberParentUnion.member1Id,
-      memberParentUnion.member2Id,
-    ]
-    const siblingParentIds = [
-      siblingParentUnion.member1Id,
-      siblingParentUnion.member2Id,
-    ]
-
-    const sharedParentId = memberParentIds.find((id) =>
-      siblingParentIds.includes(id),
-    )
-    return !!sharedParentId
-  })
+  if (!props.member) return []
+  return getStepSiblings(props.member, props.members, props.unions)
 })
-
-const getBirthDeathInfo = (member: Member) => {
-  if (member.isAlive) {
-    return member.birthDate
-      ? `b. ${formatDate(member.birthDate)}`
-      : 'Birth date unknown'
-  } else {
-    const birth = member.birthDate ? formatDate(member.birthDate) : '?'
-    const death = member.deathDate ? formatDate(member.deathDate) : '?'
-    return `${birth} - ${death}`
-  }
-}
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).getFullYear().toString()
-}
 
 const getMemberName = (memberId: number) => {
   const member = props.members.find((m) => m.id === memberId)
@@ -496,17 +414,6 @@ const getMemberName = (memberId: number) => {
         includeMiddleNames: true,
       })
     : 'Unknown Member'
-}
-
-const getUnionPartnerName = (union: Union) => {
-  if (!props.member) return 'Unknown Partner'
-
-  // Find the partner (the other person in the union)
-  const partnerId =
-    union.member1Id === props.member.id ? union.member2Id : union.member1Id
-
-  const partner = props.members.find((m) => m.id === partnerId)
-  return partner ? getFullName(partner) : 'Unknown Partner'
 }
 </script>
 

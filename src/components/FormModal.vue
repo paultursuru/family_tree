@@ -38,7 +38,6 @@
           :is-editing="isEditing"
           @save="
             (data) => {
-              console.log('FormModal received union save:', data)
               $emit('save', data)
             }
           "

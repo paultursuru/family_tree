@@ -91,7 +91,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { Member } from '@/types'
-import { useMemberUtils } from '@/composables/useMemberUtils'
+import { useMemberInfo } from '@/composables/useMemberInfo'
+import { useSearch } from '@/composables/useSearch'
 
 interface Props {
   modelValue: string[] | string | number | number[] | undefined | null
@@ -119,7 +120,10 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 // Use the member utils composable
-const { getFullName } = useMemberUtils()
+const { getFullName } = useMemberInfo()
+
+// Use the search composable
+const { searchMembers } = useSearch()
 
 const inputRef = ref<HTMLInputElement>()
 const searchQuery = ref('')
@@ -170,26 +174,17 @@ const selectedItems = computed(() => {
 })
 
 const filteredOptions = computed(() => {
-  const query = searchQuery.value.toLowerCase()
+  const query = searchQuery.value
   const selectedIds = selectedItems.value.map((item) => item.id)
 
-  return props.options
-    .filter((option) => {
-      // Exclude already selected items
-      if (selectedIds.includes(option.id)) return false
-
-      // Exclude items in excludeIds
-      if (props.excludeIds.includes(option.id.toString())) return false
-
-      // Filter by search query
-      if (query) {
-        const fullName = getFullName(option).toLowerCase()
-        return fullName.includes(query)
-      }
-
-      return true
-    })
-    .slice(0, 10) // Limit to 10 results
+  // Use the search composable for filtering
+  return searchMembers(props.options, query, {
+    excludeIds: [
+      ...selectedIds.map((id) => id.toString()),
+      ...props.excludeIds,
+    ],
+    limit: 10,
+  })
 })
 
 const handleInput = () => {

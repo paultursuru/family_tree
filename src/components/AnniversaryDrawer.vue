@@ -84,8 +84,9 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { Member, Union, AnniversaryInfo } from '@/types'
-import { useMemberUtils } from '@/composables/useMemberUtils'
+import { useMemberInfo } from '@/composables/useMemberInfo'
 import { useCalendarExport } from '@/composables/useCalendarExport'
+import { useDateUtils } from '@/composables/useDateUtils'
 
 interface Props {
   members: Member[]
@@ -109,10 +110,13 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 // Use the member utils composable
-const { getFullName } = useMemberUtils()
+const { getFullName } = useMemberInfo()
 
 // Use the calendar export composable
 const { exportToCalendar } = useCalendarExport()
+
+// Use the date utils composable
+const { formatDate, getAge, getNextAnniversary, getDaysUntil } = useDateUtils()
 
 const closeDrawer = () => {
   emit('close')
@@ -120,13 +124,6 @@ const closeDrawer = () => {
 
 const handleExportToCalendar = () => {
   exportToCalendar(upcomingAnniversaries.value)
-}
-
-const formatDate = (date: Date): string => {
-  return date.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-  })
 }
 
 const upcomingAnniversaries = computed((): AnniversaryInfo[] => {
@@ -139,21 +136,9 @@ const upcomingAnniversaries = computed((): AnniversaryInfo[] => {
     props.members
       .filter((member) => member.birthDate && member.isAlive)
       .forEach((member) => {
-        const birthDate = new Date(member.birthDate!)
-        const nextBirthday = new Date(
-          currentYear,
-          birthDate.getMonth(),
-          birthDate.getDate(),
-        )
-
-        if (nextBirthday < today) {
-          nextBirthday.setFullYear(currentYear + 1)
-        }
-
-        const daysUntil = Math.ceil(
-          (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-        )
-        const age = nextBirthday.getFullYear() - birthDate.getFullYear()
+        const nextBirthday = getNextAnniversary(member.birthDate!, currentYear)
+        const daysUntil = getDaysUntil(nextBirthday, today)
+        const age = getAge(member.birthDate!, nextBirthday)
 
         anniversaries.push({
           id: `birthday-${member.id}`,
@@ -171,21 +156,12 @@ const upcomingAnniversaries = computed((): AnniversaryInfo[] => {
     props.unions
       .filter((union) => union.marriageDate)
       .forEach((union) => {
-        const marriageDate = new Date(union.marriageDate)
-        const nextAnniversary = new Date(
+        const nextAnniversary = getNextAnniversary(
+          union.marriageDate,
           currentYear,
-          marriageDate.getMonth(),
-          marriageDate.getDate(),
         )
-
-        if (nextAnniversary < today) {
-          nextAnniversary.setFullYear(currentYear + 1)
-        }
-
-        const daysUntil = Math.ceil(
-          (nextAnniversary.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-        )
-        const years = nextAnniversary.getFullYear() - marriageDate.getFullYear()
+        const daysUntil = getDaysUntil(nextAnniversary, today)
+        const years = getYearsBetween(union.marriageDate, nextAnniversary)
 
         const member1 = props.members.find((m) => m.id === union.member1Id)
         const member2 = props.members.find((m) => m.id === union.member2Id)
@@ -208,21 +184,12 @@ const upcomingAnniversaries = computed((): AnniversaryInfo[] => {
     props.members
       .filter((member) => member.deathDate && !member.isAlive)
       .forEach((member) => {
-        const deathDate = new Date(member.deathDate!)
-        const nextAnniversary = new Date(
+        const nextAnniversary = getNextAnniversary(
+          member.deathDate!,
           currentYear,
-          deathDate.getMonth(),
-          deathDate.getDate(),
         )
-
-        if (nextAnniversary < today) {
-          nextAnniversary.setFullYear(currentYear + 1)
-        }
-
-        const daysUntil = Math.ceil(
-          (nextAnniversary.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-        )
-        const years = nextAnniversary.getFullYear() - deathDate.getFullYear()
+        const daysUntil = getDaysUntil(nextAnniversary, today)
+        const years = getYearsBetween(member.deathDate!, nextAnniversary)
 
         anniversaries.push({
           id: `death-${member.id}`,

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Member } from '@/types'
 import { ref, computed } from 'vue'
-import { useMemberUtils } from '@/composables/useMemberUtils'
+import { useMemberInfo } from '@/composables/useMemberInfo'
+import { useSearch } from '@/composables/useSearch'
 
 interface Props {
   showAddForm: boolean
@@ -23,7 +24,10 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 // Use the member utils composable
-const { getFullName } = useMemberUtils()
+const { getFullName } = useMemberInfo()
+
+// Use the search composable
+const { searchMembers, updateSearchResults } = useSearch()
 
 const searchQuery = ref('')
 const showSearchResults = ref(false)
@@ -53,7 +57,7 @@ const openSettings = () => {
   emit('open-settings')
 }
 
-const searchMembers = (event: Event) => {
+const handleSearchInput = (event: Event) => {
   const query = (event.target as HTMLInputElement).value
   searchQuery.value = query
   showSearchResults.value = query.length > 0
@@ -101,7 +105,7 @@ const handleActionsBlur = () => {
             type="text"
             placeholder="🔍 Search"
             v-model="searchQuery"
-            @input="searchMembers"
+            @input="handleSearchInput"
             @focus="showSearchResults = searchQuery.length > 0"
             @blur="handleSearchBlur"
             class="search-input"

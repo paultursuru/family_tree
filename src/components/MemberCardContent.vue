@@ -22,6 +22,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { Member } from '@/types'
+import { useMemberInfo } from '@/composables/useMemberInfo'
 
 interface Props {
   member: Member
@@ -29,26 +30,20 @@ interface Props {
 
 const props = defineProps<Props>()
 
+// Use the member info composable
+const { getShortName, getMemberInitials, getShortBirthDeathInfo } =
+  useMemberInfo()
+
 const fullName = computed(() => {
-  const { firstName, lastName } = props.member
-  return `${firstName} ${lastName}`
+  return getShortName(props.member)
 })
 
 const initials = computed(() => {
-  const { firstName, lastName } = props.member
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`
+  return getMemberInitials(props.member)
 })
 
 const birthDeathInfo = computed(() => {
-  const { isAlive, birthDate, deathDate } = props.member
-  const birthYear = birthDate ? new Date(birthDate).getFullYear() : '?'
-
-  if (isAlive) {
-    return birthDate ? `b. ${birthYear}` : 'Birth date unknown'
-  }
-
-  const deathYear = deathDate ? new Date(deathDate).getFullYear() : '?'
-  return `${birthYear} - ${deathYear}`
+  return getShortBirthDeathInfo(props.member)
 })
 </script>
 
