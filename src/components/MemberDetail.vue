@@ -112,35 +112,78 @@
           </div>
         </div>
 
-        <!-- Spouses -->
-        <div v-if="spouses.length > 0" class="relationship-group">
-          <h4 class="relationship-title">Spouses</h4>
+        <!-- Unions -->
+        <div v-if="unions.length > 0" class="relationship-group">
+          <h4 class="relationship-title">Unions</h4>
           <div class="relationship-list">
             <div
-              v-for="spouse in spouses"
-              :key="spouse.id"
-              @click="$emit('select', spouse)"
-              class="relationship-item clickable"
+              v-for="union in unions"
+              :key="union.id"
+              class="relationship-item"
             >
-              <div class="relationship-photo">
-                <img
-                  v-if="spouse.photoUrl"
-                  :src="spouse.photoUrl"
-                  :alt="getFullName(spouse)"
-                  class="photo"
-                />
-                <div v-else class="photo-placeholder">
-                  {{ getInitials(spouse) }}
+              <div class="union-info">
+                <div class="union-members">
+                  <span class="union-member">{{
+                    getUnionPartnerName(union)
+                  }}</span>
+                </div>
+                <div class="union-dates">
+                  <span v-if="union.marriageDate" class="marriage-date">
+                    Married: {{ formatDate(union.marriageDate) }}
+                    <span v-if="union.marriagePlace">
+                      in {{ union.marriagePlace }}</span
+                    >
+                  </span>
+                  <span v-if="union.divorceDate" class="divorce-date">
+                    Divorced: {{ formatDate(union.divorceDate) }}
+                    <span v-if="union.divorcePlace">
+                      in {{ union.divorcePlace }}</span
+                    >
+                  </span>
                 </div>
               </div>
-              <div class="relationship-info">
-                <span class="relationship-name">{{ getFullName(spouse) }}</span>
-                <span class="relationship-dates">{{
-                  getBirthDeathInfo(spouse)
-                }}</span>
+              <div class="union-actions">
+                <button
+                  @click="$emit('edit-union', union)"
+                  class="action-btn edit-btn"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    ></path>
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Add Union Button -->
+        <div class="relationship-group">
+          <button @click="$emit('add-union')" class="add-union-btn">
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              ></path>
+            </svg>
+            Add Union
+          </button>
         </div>
 
         <!-- Children -->
@@ -274,17 +317,21 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { Member } from '@/types'
+import { Member, Union } from '@/types'
+import UnionForm from './UnionForm.vue'
 
 interface Props {
   member?: Member
   members: Member[]
+  unions: Union[]
 }
 
 interface Emits {
   (e: 'select', member: Member): void
   (e: 'edit', member: Member): void
   (e: 'delete', member: Member): void
+  (e: 'add-union'): void
+  (e: 'edit-union', union: Union): void
 }
 
 const props = defineProps<Props>()
@@ -324,99 +371,108 @@ const birthDeathInfo = computed(() => {
 })
 
 const parents = computed(() => {
-  if (!props.member) return []
-  return props.members.filter(
-    (member) =>
-      member.id === props.member?.parent1Id ||
-      member.id === props.member?.parent2Id,
-  )
-})
+  if (!props.member || !props.member.parentUnionId) return []
 
-const spouses = computed(() => {
-  if (!props.member) return []
-  return props.members.filter((member) =>
-    props.member?.spouseIds.includes(member.id),
+  const parentUnion = props.unions.find(
+    (u) => u.id === props.member!.parentUnionId,
   )
+  if (!parentUnion) return []
+
+  const parent1 = props.members.find((m) => m.id === parentUnion.member1Id)
+  const parent2 = props.members.find((m) => m.id === parentUnion.member2Id)
+
+  return [parent1, parent2].filter((p): p is Member => !!p)
 })
 
 const children = computed(() => {
   if (!props.member) return []
-  return props.members.filter((member) =>
-    props.member?.childrenIds.includes(member.id),
+
+  // Find unions that involve the current member
+  const memberUnions = props.unions.filter(
+    (union) =>
+      union.member1Id === props.member!.id ||
+      union.member2Id === props.member!.id,
+  )
+
+  // Get all children from these unions
+  const childIds = new Set<number>()
+  memberUnions.forEach((union) => {
+    if (union.childrenIds && Array.isArray(union.childrenIds)) {
+      union.childrenIds.forEach((childId) => childIds.add(childId))
+    }
+  })
+
+  // Return the actual member objects
+  return props.members.filter((member) => childIds.has(member.id))
+})
+
+const unions = computed(() => {
+  if (!props.member) return []
+  return props.unions.filter(
+    (union) =>
+      union.member1Id === props.member!.id ||
+      union.member2Id === props.member!.id,
   )
 })
 
 const directSiblings = computed(() => {
-  if (!props.member) return []
+  if (!props.member || !props.member.parentUnionId) return []
 
   const member = props.member
-  const memberParent1Id = member.parent1Id
-  const memberParent2Id = member.parent2Id
 
   return props.members.filter((sibling) => {
     // Skip self
     if (sibling.id === member.id) return false
 
-    const siblingParent1Id = sibling.parent1Id
-    const siblingParent2Id = sibling.parent2Id
-
-    // Check if they share both parents (direct/full siblings)
-    const sharesParent1 =
-      memberParent1Id &&
-      (siblingParent1Id === memberParent1Id ||
-        siblingParent2Id === memberParent1Id)
-    const sharesParent2 =
-      memberParent2Id &&
-      (siblingParent1Id === memberParent2Id ||
-        siblingParent2Id === memberParent2Id)
-
-    // They share both parents
-    return sharesParent1 && sharesParent2
+    // Check if they share the same parent union (direct/full siblings)
+    return sibling.parentUnionId === member.parentUnionId
   })
 })
 
 const stepSiblings = computed(() => {
-  if (!props.member) return []
+  if (!props.member || !props.member.parentUnionId) return []
 
   const member = props.member
-  const memberParent1Id = member.parent1Id
-  const memberParent2Id = member.parent2Id
+  const memberParentUnion = props.unions.find(
+    (u) => u.id === member.parentUnionId,
+  )
+  if (!memberParentUnion) return []
 
   return props.members.filter((sibling) => {
     // Skip self
     if (sibling.id === member.id) return false
 
-    const siblingParent1Id = sibling.parent1Id
-    const siblingParent2Id = sibling.parent2Id
+    // Skip direct siblings (they're handled separately)
+    if (sibling.parentUnionId === member.parentUnionId) return false
 
-    // Check if they share exactly one parent (step siblings)
-    const sharesParent1 =
-      memberParent1Id && siblingParent1Id === memberParent1Id
-    const sharesParent2 =
-      memberParent2Id && siblingParent2Id === memberParent2Id
-    const sharesParent1Alt =
-      memberParent1Id && siblingParent2Id === memberParent1Id
-    const sharesParent2Alt =
-      memberParent2Id && siblingParent1Id === memberParent2Id
+    // Check if they share one parent through a different union
+    const siblingParentUnion = sibling.parentUnionId
+      ? props.unions.find((u) => u.id === sibling.parentUnionId)
+      : null
+    if (!siblingParentUnion) return false
 
-    // They share exactly one parent (not both, not none)
-    const sharesOneParent =
-      (sharesParent1 ||
-        sharesParent2 ||
-        sharesParent1Alt ||
-        sharesParent2Alt) &&
-      !(sharesParent1 && sharesParent2) &&
-      !(sharesParent1Alt && sharesParent2Alt) &&
-      !(sharesParent1 && sharesParent1Alt) &&
-      !(sharesParent2 && sharesParent2Alt)
+    // They share one parent if their parent unions have a member in common
+    const memberParentIds = [
+      memberParentUnion.member1Id,
+      memberParentUnion.member2Id,
+    ]
+    const siblingParentIds = [
+      siblingParentUnion.member1Id,
+      siblingParentUnion.member2Id,
+    ]
 
-    return sharesOneParent
+    const sharedParentId = memberParentIds.find((id) =>
+      siblingParentIds.includes(id),
+    )
+    return !!sharedParentId
   })
 })
 
 const getFullName = (member: Member) => {
   const middleNames =
-    member.middleNames.length > 0 ? ` ${member.middleNames.join(' ')}` : ''
+    member.middleNames && member.middleNames.length > 0
+      ? ` ${member.middleNames.join(' ')}`
+      : ''
   return `${member.firstName}${middleNames} ${member.lastName}`
 }
 
@@ -438,6 +494,22 @@ const getBirthDeathInfo = (member: Member) => {
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).getFullYear().toString()
+}
+
+const getMemberName = (memberId: number) => {
+  const member = props.members.find((m) => m.id === memberId)
+  return member ? getFullName(member) : 'Unknown Member'
+}
+
+const getUnionPartnerName = (union: Union) => {
+  if (!props.member) return 'Unknown Partner'
+
+  // Find the partner (the other person in the union)
+  const partnerId =
+    union.member1Id === props.member.id ? union.member2Id : union.member1Id
+
+  const partner = props.members.find((m) => m.id === partnerId)
+  return partner ? getFullName(partner) : 'Unknown Partner'
 }
 </script>
 
@@ -565,6 +637,42 @@ const formatDate = (dateString: string) => {
 
 .notes-text {
   @apply text-gray-300 leading-relaxed;
+}
+
+.union-info {
+  @apply flex-1;
+}
+
+.union-members {
+  @apply flex items-center gap-2 mb-1;
+}
+
+.union-member {
+  @apply font-medium text-gray-100;
+}
+
+.union-separator {
+  @apply text-gray-400 text-sm;
+}
+
+.union-dates {
+  @apply text-sm text-gray-400 space-y-1;
+}
+
+.marriage-date {
+  @apply text-green-400;
+}
+
+.divorce-date {
+  @apply text-red-400;
+}
+
+.union-actions {
+  @apply flex items-center;
+}
+
+.add-union-btn {
+  @apply flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm;
 }
 
 .no-selection {

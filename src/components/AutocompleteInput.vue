@@ -175,7 +175,7 @@ const filteredOptions = computed(() => {
       if (selectedIds.includes(option.id)) return false
 
       // Exclude items in excludeIds
-      if (props.excludeIds.includes(option.id)) return false
+      if (props.excludeIds.includes(option.id.toString())) return false
 
       // Filter by search query
       if (query) {
@@ -190,7 +190,9 @@ const filteredOptions = computed(() => {
 
 const getFullName = (member: Member) => {
   const middleNames =
-    member.middleNames.length > 0 ? ` ${member.middleNames.join(' ')}` : ''
+    member.middleNames && member.middleNames.length > 0
+      ? ` ${member.middleNames.join(' ')}`
+      : ''
   return `${member.firstName}${middleNames} ${member.lastName}`
 }
 

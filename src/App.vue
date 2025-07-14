@@ -4,9 +4,10 @@
     <Header
       :show-add-form="showAddForm"
       @import-from-json="importFromJson"
-      @export-to-json="() => exportToJson(members)"
+      @export-to-json="() => exportToJson(members, unions)"
       @show-add-form="showAddForm = true"
       @confirm-destroy-all="confirmDestroyAll"
+      @open-settings="openSettings"
       @search-members="searchMembers"
       @select-member="selectMember"
       @select-member-from-search="selectMemberFromSearch"
@@ -18,6 +19,7 @@
       <div class="tree-fullscreen">
         <FamilyTree
           :members="members"
+          :unions="unions"
           :selected-member-id="selectedMember?.id"
           @select-member="selectMember"
           @edit-member="editMember"
@@ -57,9 +59,12 @@
         <MemberDetail
           :member="selectedMember || undefined"
           :members="members"
+          :unions="unions"
           @select="selectMember"
           @edit="editMember"
           @delete="confirmDelete"
+          @add-union="addUnion"
+          @edit-union="editUnion"
         />
       </div>
     </aside>
@@ -78,9 +83,21 @@
       :show="showAddForm || !!editingMember"
       :member="editingMember"
       :members="members"
+      :unions="unions"
       :is-editing="!!editingMember"
       @close="closeModal"
       @save="saveMember"
+    />
+
+    <!-- Modal for Add/Edit Union -->
+    <FormModal
+      :show="showUnionForm || !!editingUnion"
+      :union="editingUnion"
+      :members="members"
+      :unions="unions"
+      :is-editing="!!editingUnion"
+      @close="closeUnionModal"
+      @save="saveUnion"
     />
 
     <!-- Delete Confirmation Modal -->
@@ -206,28 +223,82 @@
         </div>
       </div>
     </div>
+
+    <!-- Settings Modal -->
+    <div
+      v-if="showSettingsModal"
+      class="modal-overlay"
+      @click="closeSettingsModal"
+    >
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2 class="modal-title">Settings</h2>
+          <button @click="closeSettingsModal" class="modal-close">
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <SettingsForm
+            :members="members"
+            :current-settings="settings"
+            @save="saveSettings"
+            @cancel="closeSettingsModal"
+          />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue'
-import { Member, MemberFormData } from '@/types'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import {
+  Member,
+  MemberFormData,
+  Union,
+  UnionFormData,
+  FamilyData,
+} from '@/types'
 import { useFileOperations } from '@/composables/useFileOperations'
 import Header from '@/components/Header.vue'
 import FamilyTree from '@/components/FamilyTree.vue'
 import MemberDetail from '@/components/MemberDetail.vue'
 import MemberForm from '@/components/MemberForm.vue'
+import UnionForm from '@/components/UnionForm.vue'
 import FormModal from '@/components/FormModal.vue'
+import SettingsForm from '@/components/SettingsForm.vue'
 
 // State
 const members = ref<Member[]>([])
+const unions = ref<Union[]>([])
 const selectedMember = ref<Member | null>(null)
 const showAddForm = ref(false)
 const editingMember = ref<Member | null>(null)
+const editingUnion = ref<Union | null>(null)
+const showUnionForm = ref(false)
 const memberToDelete = ref<Member | null>(null)
 const showDestroyAllModal = ref(false)
+const showSettingsModal = ref(false)
 const familyTreeRef = ref<InstanceType<typeof FamilyTree> | null>(null)
 const searchResults = ref<Member[]>([])
+
+// Settings state
+const settings = ref({
+  defaultMemberId: null as number | null,
+  showDates: true,
+})
 
 // File operations composable
 const { fileInput, exportToJson, importFromJson, handleFileImport } =
@@ -235,11 +306,126 @@ const { fileInput, exportToJson, importFromJson, handleFileImport } =
 
 // Load data from localStorage or default
 onMounted(() => {
-  const savedMembers = localStorage.getItem('family-members')
-  if (savedMembers) {
-    members.value = JSON.parse(savedMembers)
+  const savedData = localStorage.getItem('family-data')
+  if (savedData) {
+    const parsedData = JSON.parse(savedData)
+    // Migrate existing data to ensure proper structure
+    const migratedData = migrateData(parsedData)
+    members.value = migratedData.members
+    unions.value = migratedData.unions
+  }
+
+  // Load settings
+  const savedSettings = localStorage.getItem('family-settings')
+  if (savedSettings) {
+    settings.value = { ...settings.value, ...JSON.parse(savedSettings) }
+  }
+
+  // Set default selected member if specified
+  if (settings.value.defaultMemberId) {
+    const defaultMember = members.value.find(
+      (m) => m.id === settings.value.defaultMemberId,
+    )
+    if (defaultMember) {
+      // Use nextTick to ensure the FamilyTree component is mounted
+      nextTick(() => {
+        if (familyTreeRef.value) {
+          // Set as main member in the tree without opening the drawer
+          familyTreeRef.value.setMainMemberById(defaultMember.id)
+        }
+      })
+    }
   }
 })
+
+// Migration function to ensure proper data structure
+const migrateData = (data: any): FamilyData => {
+  let members: any[] = []
+  let unions: Union[] = []
+
+  // Handle old format where unions were embedded in members
+  if (Array.isArray(data)) {
+    // Old format: array of members with embedded unions
+    members = data.map((member) => ({
+      ...member,
+      unions: member.unions || [],
+      spouseIds: member.spouseIds || [], // Keep for backward compatibility
+    }))
+
+    // Extract unions from members
+    members.forEach((member) => {
+      if (member.unions && Array.isArray(member.unions)) {
+        member.unions.forEach((union: any) => {
+          // Avoid duplicates
+          if (!unions.find((u) => u.id === union.id)) {
+            unions.push(union)
+          }
+        })
+      }
+    })
+  } else if (data.members && data.unions) {
+    // New format: separate members and unions
+    members = data.members.map((member: any) => ({
+      ...member,
+      unions: member.unions || [],
+      spouseIds: member.spouseIds || [],
+    }))
+    unions = data.unions || []
+  } else {
+    // Fallback: empty data
+    return { members: [], unions: [] }
+  }
+
+  // Migrate parent1Id/parent2Id to parentUnionId
+  members = members.map((member) => {
+    const migratedMember = { ...member }
+
+    // Remove old parent properties
+    delete migratedMember.parent1Id
+    delete migratedMember.parent2Id
+
+    // Ensure parentUnionId exists (will be undefined if no parents)
+    if (!migratedMember.hasOwnProperty('parentUnionId')) {
+      migratedMember.parentUnionId = undefined
+    }
+
+    // Ensure middleNames is an array
+    if (!Array.isArray(migratedMember.middleNames)) {
+      migratedMember.middleNames = []
+    }
+
+    return migratedMember
+  })
+
+  // Ensure all unions have childrenIds array
+  unions = unions.map((union) => ({
+    ...union,
+    childrenIds: Array.isArray(union.childrenIds) ? union.childrenIds : [],
+  }))
+
+  // Build parentUnionId dynamically from unions
+  members = buildParentUnionIds(members, unions)
+
+  return { members, unions }
+}
+
+// Function to build parentUnionId dynamically from unions
+const buildParentUnionIds = (members: Member[], unions: Union[]): Member[] => {
+  return members.map((member) => {
+    // Find which union has this member as a child
+    const parentUnion = unions.find(
+      (union) =>
+        union.childrenIds &&
+        Array.isArray(union.childrenIds) &&
+        union.childrenIds.includes(member.id),
+    )
+
+    return {
+      ...member,
+      parentUnionId: parentUnion?.id || undefined,
+    }
+  })
+}
 
 // Computed
 const nextId = computed(() => {
@@ -250,7 +436,11 @@ const nextId = computed(() => {
 
 // Methods
 const saveToLocalStorage = () => {
-  localStorage.setItem('family-members', JSON.stringify(members.value))
+  const familyData: FamilyData = {
+    members: members.value,
+    unions: unions.value,
+  }
+  localStorage.setItem('family-data', JSON.stringify(familyData))
 }
 
 const selectMember = (member: Member) => {
@@ -291,17 +481,36 @@ const deleteMember = () => {
   // Remove from members array
   members.value = members.value.filter((m) => m.id !== memberId)
 
-  // Update relationships
+  // Remove unions that involve the deleted member
+  unions.value = unions.value.filter(
+    (union) => union.member1Id !== memberId && union.member2Id !== memberId,
+  )
+
+  // Update relationships - remove member from parent unions
   members.value.forEach((member) => {
-    // Remove from spouse lists
-    member.spouseIds = member.spouseIds.filter((id) => id !== memberId)
+    if (member.parentUnionId) {
+      const parentUnion = unions.value.find(
+        (u) => u.id === member.parentUnionId,
+      )
+      if (
+        parentUnion &&
+        parentUnion.childrenIds &&
+        Array.isArray(parentUnion.childrenIds)
+      ) {
+        parentUnion.childrenIds = parentUnion.childrenIds.filter(
+          (id) => id !== memberId,
+        )
+      }
+    }
+  })
 
-    // Remove from children lists
-    member.childrenIds = member.childrenIds.filter((id) => id !== memberId)
-
-    // Clear parent references
-    if (member.parent1Id === memberId) member.parent1Id = undefined
-    if (member.parent2Id === memberId) member.parent2Id = undefined
+  // Remove the member from any union's children lists
+  unions.value.forEach((union) => {
+    if (union.childrenIds && Array.isArray(union.childrenIds)) {
+      union.childrenIds = union.childrenIds.filter(
+        (childId) => childId !== memberId,
+      )
+    }
   })
 
   // Clear selection if deleted member was selected
@@ -313,6 +522,115 @@ const deleteMember = () => {
   memberToDelete.value = null
 }
 
+const editUnion = (union: Union) => {
+  editingUnion.value = union
+  showUnionForm.value = true
+}
+
+const addUnion = () => {
+  const currentMemberId = selectedMember.value?.id || 0
+  editingUnion.value = {
+    id: 0, // Explicitly 0 to indicate new union
+    member1Id: currentMemberId,
+    member2Id: 0,
+    marriageDate: '',
+    marriagePlace: '',
+    divorceDate: '',
+    divorcePlace: '',
+    childrenIds: [],
+  }
+  showUnionForm.value = true
+}
+
+const saveUnion = (formData: UnionFormData) => {
+  console.log('saveUnion called with:', formData)
+  const now = new Date().toISOString()
+  const unionId =
+    editingUnion.value?.id && editingUnion.value.id > 0
+      ? editingUnion.value.id
+      : nextId.value
+
+  // Create or update the union
+  const union: Union = {
+    id: unionId,
+    member1Id: Number(formData.member1Id),
+    member2Id: Number(formData.member2Id),
+    marriageDate: formData.marriageDate,
+    marriagePlace: formData.marriagePlace,
+    divorceDate: formData.divorceDate,
+    divorcePlace: formData.divorcePlace,
+    childrenIds: formData.childrenIds.map(Number),
+  }
+
+  console.log('Created union:', union)
+
+  // Check if we're editing an existing union (has real ID) or creating new one
+  const isEditingExisting = editingUnion.value && editingUnion.value.id > 0
+
+  if (isEditingExisting) {
+    // Update existing union
+    const unionIndex = unions.value.findIndex((u) => u.id === unionId)
+    if (unionIndex !== -1) {
+      // Handle children relationship changes for existing union
+      const oldUnion = unions.value[unionIndex]
+      const oldChildrenIds = new Set(oldUnion.childrenIds || [])
+      const newChildrenIds = new Set(union.childrenIds || [])
+
+      // Remove children from old parent union
+      const removedChildren = [...oldChildrenIds].filter(
+        (id) => !newChildrenIds.has(id),
+      )
+      removedChildren.forEach((childId) => {
+        const child = members.value.find((m) => m.id === childId)
+        if (child && child.parentUnionId === oldUnion.id) {
+          child.parentUnionId = undefined
+        }
+      })
+
+      // Add children to new parent union
+      const addedChildren = [...newChildrenIds].filter(
+        (id) => !oldChildrenIds.has(id),
+      )
+      addedChildren.forEach((childId) => {
+        const child = members.value.find((m) => m.id === childId)
+        if (child) {
+          child.parentUnionId = union.id
+        }
+      })
+
+      unions.value[unionIndex] = union
+    }
+  } else {
+    // Add new union and set up parent-child relationships
+    if (union.childrenIds && Array.isArray(union.childrenIds)) {
+      union.childrenIds.forEach((childId) => {
+        const child = members.value.find((m) => m.id === childId)
+        if (child) {
+          child.parentUnionId = union.id
+        }
+      })
+    }
+
+    unions.value.push(union)
+  }
+
+  console.log('Updated unions array:', {
+    totalUnions: unions.value.length,
+    isEditingExisting,
+  })
+
+  // Rebuild parentUnionIds to ensure consistency
+  members.value = buildParentUnionIds(members.value, unions.value)
+
+  saveToLocalStorage()
+  closeUnionModal()
+}
+
+const closeUnionModal = () => {
+  showUnionForm.value = false
+  editingUnion.value = null
+}
+
 const saveMember = (formData: MemberFormData) => {
   const now = new Date().toISOString()
 
@@ -320,111 +638,51 @@ const saveMember = (formData: MemberFormData) => {
   // Ensure all incoming IDs from the form are numbers, not strings
   const sanitizedFormData = {
     ...formData,
-    parent1Id: formData.parent1Id ? Number(formData.parent1Id) : undefined,
-    parent2Id: formData.parent2Id ? Number(formData.parent2Id) : undefined,
-    spouseIds: formData.spouseIds.map(Number),
-    childrenIds: formData.childrenIds.map(Number),
+    parentUnionId: formData.parentUnionId
+      ? Number(formData.parentUnionId)
+      : undefined,
   }
 
   const memberId = editingMember.value?.id || nextId.value
 
   // --- Handle Parent-Child relationship changes ---
-  const oldParentIds = new Set(
-    editingMember.value
-      ? [editingMember.value.parent1Id, editingMember.value.parent2Id].filter(
-          (p): p is number => p != null,
+  const oldParentUnionId = editingMember.value?.parentUnionId
+  const newParentUnionId = sanitizedFormData.parentUnionId
+
+  // If parent union changed, we need to update the union's children list
+  if (oldParentUnionId !== newParentUnionId) {
+    // Remove from old parent union
+    if (oldParentUnionId) {
+      const oldUnion = unions.value.find((u) => u.id === oldParentUnionId)
+      if (
+        oldUnion &&
+        oldUnion.childrenIds &&
+        Array.isArray(oldUnion.childrenIds)
+      ) {
+        oldUnion.childrenIds = oldUnion.childrenIds.filter(
+          (id) => id !== memberId,
         )
-      : [],
-  )
-  const newParentIds = new Set(
-    [sanitizedFormData.parent1Id, sanitizedFormData.parent2Id].filter(
-      (p): p is number => p != null,
-    ),
-  )
-
-  // Remove child from old parents that are no longer parents
-  const removedParentIds = [...oldParentIds].filter(
-    (id) => !newParentIds.has(id),
-  )
-  removedParentIds.forEach((parentId) => {
-    const parent = members.value.find((p) => p.id === parentId)
-    if (parent) {
-      parent.childrenIds = parent.childrenIds.filter(
-        (childId) => childId !== memberId,
-      )
+      }
     }
-  })
 
-  // Add child to new parents
-  const addedParentIds = [...newParentIds].filter((id) => !oldParentIds.has(id))
-  addedParentIds.forEach((parentId) => {
-    const parent = members.value.find((p) => p.id === parentId)
-    if (parent && !parent.childrenIds.includes(memberId)) {
-      parent.childrenIds.push(memberId)
+    // Add to new parent union
+    if (newParentUnionId) {
+      const newUnion = unions.value.find((u) => u.id === newParentUnionId)
+      if (newUnion) {
+        if (!newUnion.childrenIds) {
+          newUnion.childrenIds = []
+        }
+        if (!newUnion.childrenIds.includes(memberId)) {
+          newUnion.childrenIds.push(memberId)
+        }
+      }
     }
-  })
+  }
 
   // --- Upsert the member's own data ---
   if (editingMember.value) {
     const index = members.value.findIndex((m) => m.id === memberId)
     if (index !== -1) {
-      // --- Handle Spouse relationship changes ---
-      const originalSpouseIds = new Set(editingMember.value.spouseIds)
-      const newSpouseIds = new Set(sanitizedFormData.spouseIds)
-      const addedSpouses = [...newSpouseIds].filter(
-        (id) => !originalSpouseIds.has(id),
-      )
-      const removedSpouses = [...originalSpouseIds].filter(
-        (id) => !newSpouseIds.has(id),
-      )
-
-      addedSpouses.forEach((spouseId) => {
-        const spouse = members.value.find((m) => m.id === spouseId)
-        if (spouse && !spouse.spouseIds.includes(memberId)) {
-          spouse.spouseIds.push(memberId)
-        }
-      })
-      removedSpouses.forEach((spouseId) => {
-        const spouse = members.value.find((m) => m.id === spouseId)
-        if (spouse) {
-          spouse.spouseIds = spouse.spouseIds.filter((id) => id !== memberId)
-        }
-      })
-
-      // --- Handle Children relationship changes ---
-      const originalChildrenIds = new Set(editingMember.value.childrenIds)
-      const newChildrenIds = new Set(sanitizedFormData.childrenIds)
-      const addedChildren = [...newChildrenIds].filter(
-        (id) => !originalChildrenIds.has(id),
-      )
-      const removedChildren = [...originalChildrenIds].filter(
-        (id) => !newChildrenIds.has(id),
-      )
-
-      addedChildren.forEach((childId) => {
-        const child = members.value.find((m) => m.id === childId)
-        if (child) {
-          // Set this member as parent1 or parent2 of the child
-          if (!child.parent1Id) {
-            child.parent1Id = memberId
-          } else if (!child.parent2Id) {
-            child.parent2Id = memberId
-          }
-        }
-      })
-      removedChildren.forEach((childId) => {
-        const child = members.value.find((m) => m.id === childId)
-        if (child) {
-          // Remove this member as parent of the child
-          if (child.parent1Id === memberId) {
-            child.parent1Id = undefined
-          }
-          if (child.parent2Id === memberId) {
-            child.parent2Id = undefined
-          }
-        }
-      })
-
       // Update the member
       members.value[index] = {
         ...members.value[index],
@@ -437,35 +695,29 @@ const saveMember = (formData: MemberFormData) => {
     const newMember: Member = {
       id: memberId,
       ...sanitizedFormData,
-      childrenIds: sanitizedFormData.childrenIds, // Use the childrenIds from form data
       createdAt: now,
       updatedAt: now,
     }
 
-    // Update spouses of the new member
-    newMember.spouseIds.forEach((spouseId) => {
-      const spouse = members.value.find((m) => m.id === spouseId)
-      if (spouse && !spouse.spouseIds.includes(memberId)) {
-        spouse.spouseIds.push(memberId)
-      }
-    })
-
-    // Update children of the new member
-    newMember.childrenIds.forEach((childId) => {
-      const child = members.value.find((m) => m.id === childId)
-      if (child) {
-        // Set this member as parent1 or parent2 of the child
-        if (!child.parent1Id) {
-          child.parent1Id = memberId
-        } else if (!child.parent2Id) {
-          child.parent2Id = memberId
-        }
-      }
-    })
-
     members.value.push(newMember)
     selectedMember.value = newMember
+
+    // Add to parent union if specified
+    if (newParentUnionId) {
+      const parentUnion = unions.value.find((u) => u.id === newParentUnionId)
+      if (parentUnion) {
+        if (!parentUnion.childrenIds) {
+          parentUnion.childrenIds = []
+        }
+        if (!parentUnion.childrenIds.includes(memberId)) {
+          parentUnion.childrenIds.push(memberId)
+        }
+      }
+    }
   }
+
+  // Rebuild parentUnionIds to ensure consistency
+  members.value = buildParentUnionIds(members.value, unions.value)
 
   saveToLocalStorage()
   closeModal()
@@ -482,8 +734,9 @@ const getFullName = (member: Member) => {
   return `${member.firstName}${middleNames} ${member.lastName}`
 }
 
-const handleFileImportSuccess = (importedMembers: Member[]) => {
-  members.value = importedMembers
+const handleFileImportSuccess = (familyData: FamilyData) => {
+  members.value = familyData.members
+  unions.value = familyData.unions
   saveToLocalStorage()
 }
 
@@ -498,6 +751,7 @@ const cancelDestroyAll = () => {
 const destroyAllMembers = () => {
   // Clear all reactive state
   members.value = []
+  unions.value = []
   selectedMember.value = null
   showAddForm.value = false
   editingMember.value = null
@@ -516,6 +770,21 @@ const searchMembers = (query: string) => {
     return getFullName(member).toLowerCase().includes(query.toLowerCase())
   })
   console.log('Search results:', searchResults.value)
+}
+
+// Settings functions
+const openSettings = () => {
+  showSettingsModal.value = true
+}
+
+const closeSettingsModal = () => {
+  showSettingsModal.value = false
+}
+
+const saveSettings = (newSettings: any) => {
+  settings.value = { ...settings.value, ...newSettings }
+  localStorage.setItem('family-settings', JSON.stringify(settings.value))
+  closeSettingsModal()
 }
 </script>
 

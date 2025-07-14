@@ -3,7 +3,7 @@
     <div class="modal-content" @click.stop>
       <div class="modal-header">
         <h2 class="modal-title">
-          {{ isEditing ? 'Edit Family Member' : 'Add New Family Member' }}
+          {{ modalTitle }}
         </h2>
         <button @click="$emit('close')" class="modal-close">
           <svg
@@ -23,10 +23,25 @@
       </div>
       <div class="modal-body">
         <MemberForm
-          :member="member"
+          v-if="isShowingMemberForm"
+          :member="member || undefined"
           :members="members"
+          :unions="unions"
           :is-editing="isEditing"
           @save="$emit('save', $event)"
+          @cancel="$emit('close')"
+        />
+        <UnionForm
+          v-if="isShowingUnionForm"
+          :union="union"
+          :members="members"
+          :is-editing="isEditing"
+          @save="
+            (data) => {
+              console.log('FormModal received union save:', data)
+              $emit('save', data)
+            }
+          "
           @cancel="$emit('close')"
         />
       </div>
@@ -35,23 +50,43 @@
 </template>
 
 <script setup lang="ts">
-import { Member, MemberFormData } from '@/types'
+import { computed } from 'vue'
+import { Member, MemberFormData, Union, UnionFormData } from '@/types'
 import MemberForm from './MemberForm.vue'
+import UnionForm from './UnionForm.vue'
 
 interface Props {
   show: boolean
   member?: Member | null
+  union?: Union | null
   members: Member[]
+  unions: Union[]
   isEditing: boolean
 }
 
 interface Emits {
   (e: 'close'): void
-  (e: 'save', formData: MemberFormData): void
+  (e: 'save', formData: MemberFormData | UnionFormData): void
 }
 
-defineProps<Props>()
-defineEmits<Emits>()
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+
+const isShowingMemberForm = computed(() => {
+  return !props.union && (props.member || props.show)
+})
+
+const isShowingUnionForm = computed(() => {
+  return props.union !== null && props.union !== undefined
+})
+
+const modalTitle = computed(() => {
+  if (isShowingUnionForm.value) {
+    return props.isEditing ? 'Edit Union' : 'Add New Union'
+  } else {
+    return props.isEditing ? 'Edit Family Member' : 'Add New Family Member'
+  }
+})
 </script>
 
 <style scoped>

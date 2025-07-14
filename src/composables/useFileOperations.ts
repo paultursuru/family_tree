@@ -1,11 +1,15 @@
 import { ref } from 'vue'
-import { Member } from '@/types'
+import { Member, FamilyData } from '@/types'
 
 export function useFileOperations() {
   const fileInput = ref<HTMLInputElement>()
 
-  const exportToJson = (members: Member[]) => {
-    const jsonData = JSON.stringify(members, null, 2)
+  const exportToJson = (members: Member[], unions: any[]) => {
+    const familyData: FamilyData = {
+      members,
+      unions,
+    }
+    const jsonData = JSON.stringify(familyData, null, 2)
     const blob = new Blob([jsonData], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -23,7 +27,7 @@ export function useFileOperations() {
 
   const handleFileImport = (
     event: Event,
-    onImportSuccess: (members: Member[]) => void,
+    onImportSuccess: (familyData: FamilyData) => void,
   ) => {
     const target = event.target as HTMLInputElement
     const file = target.files?.[0]
@@ -35,13 +39,41 @@ export function useFileOperations() {
       try {
         const jsonData = JSON.parse(event.target?.result as string)
 
+        // Handle both old and new formats
+        let familyData: FamilyData
+
+        if (jsonData.members && jsonData.unions) {
+          // New format: separate members and unions
+          familyData = jsonData
+        } else if (Array.isArray(jsonData)) {
+          // Old format: array of members with embedded unions
+          const members = jsonData
+          const unions: any[] = []
+          members.forEach((member: any) => {
+            if (member.unions && Array.isArray(member.unions)) {
+              member.unions.forEach((union: any) => {
+                if (!unions.find((u) => u.id === union.id)) {
+                  unions.push(union)
+                }
+              })
+            }
+          })
+          familyData = { members, unions }
+        } else {
+          throw new Error('Invalid JSON structure')
+        }
+
         // Validate the JSON structure
-        if (!Array.isArray(jsonData)) {
-          throw new Error('JSON file must contain an array of members')
+        if (!Array.isArray(familyData.members)) {
+          throw new Error('JSON file must contain a members array')
+        }
+
+        if (!Array.isArray(familyData.unions)) {
+          throw new Error('JSON file must contain a unions array')
         }
 
         // Validate each member has required fields
-        const validMembers = jsonData.filter((member: any) => {
+        const validMembers = familyData.members.filter((member: any) => {
           return (
             member &&
             typeof member.id === 'number' &&
@@ -49,8 +81,6 @@ export function useFileOperations() {
             typeof member.lastName === 'string' &&
             typeof member.gender === 'string' &&
             typeof member.isAlive === 'boolean' &&
-            Array.isArray(member.spouseIds) &&
-            Array.isArray(member.childrenIds) &&
             Array.isArray(member.middleNames)
           )
         })
@@ -59,9 +89,9 @@ export function useFileOperations() {
           throw new Error('No valid members found in the JSON file')
         }
 
-        if (validMembers.length !== jsonData.length) {
+        if (validMembers.length !== familyData.members.length) {
           console.warn(
-            `Warning: ${jsonData.length - validMembers.length} invalid members were skipped`,
+            `Warning: ${familyData.members.length - validMembers.length} invalid members were skipped`,
           )
         }
 
@@ -71,10 +101,12 @@ export function useFileOperations() {
         }
 
         // Call the success callback
-        onImportSuccess(validMembers)
+        onImportSuccess({ members: validMembers, unions: familyData.unions })
 
         // Show success message
-        alert(`Successfully imported ${validMembers.length} family members!`)
+        alert(
+          `Successfully imported ${validMembers.length} family members and ${familyData.unions.length} unions!`,
+        )
       } catch (error) {
         console.error('Import error:', error)
         alert(

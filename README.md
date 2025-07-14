@@ -81,14 +81,22 @@ interface Member {
   deathPlace?: string
   gender: 'male' | 'female' | 'other'
   isAlive: boolean
-  parent1Id?: number
-  parent2Id?: number
-  spouseIds: number[]
-  childrenIds: number[]
+  parentUnionId?: number
   photoUrl?: string
   notes?: string
   createdAt: string
   updatedAt: string
+}
+
+interface Union {
+  id: number
+  member1Id: number
+  member2Id: number
+  marriageDate: string
+  marriagePlace: string
+  divorceDate?: string
+  divorcePlace?: string
+  childrenIds: number[]
 }
 ```
 

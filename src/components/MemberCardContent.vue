@@ -30,9 +30,8 @@ interface Props {
 const props = defineProps<Props>()
 
 const fullName = computed(() => {
-  const { firstName, middleNames, lastName } = props.member
-  const middle = middleNames?.length > 0 ? ` ${middleNames.join(' ')}` : ''
-  return `${firstName}${middle} ${lastName}`
+  const { firstName, lastName } = props.member
+  return `${firstName} ${lastName}`
 })
 
 const initials = computed(() => {

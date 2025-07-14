@@ -12,6 +12,7 @@
           :selected-member-id="selectedMemberId"
           :main-member-id="currentMainMember?.id"
           generation-type="parents"
+          :unions="unions"
           @select-member="$emit('select-member', $event)"
           @edit-member="$emit('edit-member', $event)"
           @delete-member="$emit('delete-member', $event)"
@@ -29,6 +30,7 @@
           :selected-member-id="selectedMemberId"
           :main-member-id="currentMainMember?.id"
           generation-type="children"
+          :unions="unions"
           @select-member="$emit('select-member', $event)"
           @edit-member="$emit('edit-member', $event)"
           @delete-member="$emit('delete-member', $event)"
@@ -46,11 +48,12 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
-import { Member } from '@/types'
+import { Member, Union } from '@/types'
 import GenerationLine from './GenerationLine.vue'
 
 interface Props {
   members: Member[]
+  unions: Union[]
   selectedMemberId?: number
 }
 
@@ -72,7 +75,7 @@ const navigationHistory = ref<
 
 // Initialize with root members (those without parents)
 const initializeTree = () => {
-  const rootMembers = props.members.filter((m) => !m.parent1Id && !m.parent2Id)
+  const rootMembers = props.members.filter((m) => !m.parentUnionId)
   if (rootMembers.length > 0) {
     currentFocusMember.value = rootMembers[0]
     currentMainMember.value = rootMembers[0]
@@ -83,10 +86,10 @@ const initializeTree = () => {
 const currentParents = computed(() => {
   if (!currentFocusMember.value) {
     // Show root members as parents
-    return props.members.filter((m) => !m.parent1Id && !m.parent2Id)
+    return props.members.filter((m) => !m.parentUnionId)
   }
 
-  // Show the current focus member and their spouses as parents
+  // Show the current focus member and their union partners as parents
   const uniqueParentIds = new Set<number>()
   const parents: Member[] = []
 
@@ -94,13 +97,23 @@ const currentParents = computed(() => {
   uniqueParentIds.add(currentFocusMember.value.id)
   parents.push(currentFocusMember.value)
 
-  // Add spouses (avoiding duplicates)
-  currentFocusMember.value.spouseIds.forEach((spouseId) => {
-    if (!uniqueParentIds.has(spouseId)) {
-      const spouse = props.members.find((m) => m.id === spouseId)
-      if (spouse) {
-        uniqueParentIds.add(spouseId)
-        parents.push(spouse)
+  // Add union partners (avoiding duplicates)
+  const memberUnions = props.unions.filter(
+    (union) =>
+      union.member1Id === currentFocusMember.value!.id ||
+      union.member2Id === currentFocusMember.value!.id,
+  )
+
+  memberUnions.forEach((union) => {
+    const partnerId =
+      union.member1Id === currentFocusMember.value!.id
+        ? union.member2Id
+        : union.member1Id
+    if (!uniqueParentIds.has(partnerId)) {
+      const partner = props.members.find((m) => m.id === partnerId)
+      if (partner) {
+        uniqueParentIds.add(partnerId)
+        parents.push(partner)
       }
     }
   })
@@ -114,37 +127,57 @@ const currentChildren = computed(() => {
     return []
   }
 
-  // filter members to find all child with either parent1Id or parent2Id equal to currentMainMember id
-  return props.members.filter((member) => {
-    return (
-      member.parent1Id === currentMainMember.value?.id ||
-      member.parent2Id === currentMainMember.value?.id
-    )
+  // Find unions that involve the current main member
+  const memberUnions = props.unions.filter(
+    (union) =>
+      union.member1Id === currentMainMember.value?.id ||
+      union.member2Id === currentMainMember.value?.id,
+  )
+
+  // Get all children from these unions
+  const childIds = new Set<number>()
+  memberUnions.forEach((union) => {
+    if (union.childrenIds && Array.isArray(union.childrenIds)) {
+      union.childrenIds.forEach((childId) => childIds.add(childId))
+    }
   })
+
+  // Return the actual member objects
+  return props.members.filter((member) => childIds.has(member.id))
 })
 
 // Navigation methods
 const navigateToParents = (member: Member) => {
-  const parent1 = member.parent1Id
-    ? props.members.find((m) => m.id === member.parent1Id)
-    : null
-  const parent2 = member.parent2Id
-    ? props.members.find((m) => m.id === member.parent2Id)
-    : null
+  if (member.parentUnionId) {
+    const parentUnion = props.unions.find((u) => u.id === member.parentUnionId)
+    if (parentUnion) {
+      // Add to navigation history
+      navigationHistory.value.push({ member, type: 'parents' })
 
-  if (parent1 || parent2) {
-    // Add to navigation history
-    navigationHistory.value.push({ member, type: 'parents' })
-
-    // Set the first available parent as focus, or the member itself if no parents
-    const newFocusMember = parent1 || parent2 || member
-    currentFocusMember.value = newFocusMember
-    currentMainMember.value = newFocusMember
+      // Set the first parent as focus
+      const parent1 = props.members.find((m) => m.id === parentUnion.member1Id)
+      const parent2 = props.members.find((m) => m.id === parentUnion.member2Id)
+      const newFocusMember = parent1 || parent2 || member
+      currentFocusMember.value = newFocusMember
+      currentMainMember.value = newFocusMember
+    }
   }
 }
 
 const navigateToChildren = (member: Member) => {
-  if (member.childrenIds.length > 0) {
+  // Check if member has children through unions
+  const memberUnions = props.unions.filter(
+    (union) => union.member1Id === member.id || union.member2Id === member.id,
+  )
+
+  const hasChildren = memberUnions.some(
+    (union) =>
+      union.childrenIds &&
+      Array.isArray(union.childrenIds) &&
+      union.childrenIds.length > 0,
+  )
+
+  if (hasChildren) {
     // Add to navigation history
     navigationHistory.value.push({ member, type: 'children' })
 
@@ -192,7 +225,9 @@ const reset = () => {
 
 const getFullName = (member: Member) => {
   const middleNames =
-    member.middleNames.length > 0 ? ` ${member.middleNames.join(' ')}` : ''
+    member.middleNames && member.middleNames.length > 0
+      ? ` ${member.middleNames.join(' ')}`
+      : ''
   return `${member.firstName}${middleNames} ${member.lastName}`
 }
 

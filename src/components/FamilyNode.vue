@@ -119,6 +119,7 @@
           :key="childNode.member.id"
           :node="childNode"
           :members="members"
+          :unions="unions"
           :selected-member-id="selectedMemberId"
           @select-member="$emit('select-member', $event)"
           @edit-member="$emit('edit-member', $event)"
@@ -131,13 +132,14 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { Member, FamilyNode as FamilyNodeType } from '@/types'
+import { Member, FamilyNode as FamilyNodeType, Union } from '@/types'
 import FamilyNodeComponent from './FamilyNode.vue'
 import MemberCardContent from './MemberCardContent.vue'
 
 interface Props {
   node: FamilyNodeType
   members: Member[]
+  unions: Union[]
   selectedMemberId?: number
 }
 
@@ -151,8 +153,20 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const spouses = computed(() => {
-  return props.node.member.spouseIds
-    .map((id) => props.members.find((m) => m.id === id))
+  const memberUnions = props.unions.filter(
+    (union) =>
+      union.member1Id === props.node.member.id ||
+      union.member2Id === props.node.member.id,
+  )
+
+  return memberUnions
+    .map((union) => {
+      const partnerId =
+        union.member1Id === props.node.member.id
+          ? union.member2Id
+          : union.member1Id
+      return props.members.find((m) => m.id === partnerId)
+    })
     .filter((m): m is Member => !!m)
 })
 

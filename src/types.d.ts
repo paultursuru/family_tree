@@ -10,14 +10,27 @@ export interface Member {
   deathPlace?: string
   gender: 'male' | 'female' | 'other'
   isAlive: boolean
-  parent1Id?: number
-  parent2Id?: number
-  spouseIds: number[]
-  childrenIds: number[]
+  parentUnionId?: number
   photoUrl?: string
   notes?: string
   createdAt: string
   updatedAt: string
+}
+
+export interface Union {
+  id: number
+  member1Id: number
+  member2Id: number
+  marriageDate: string
+  marriagePlace: string
+  divorceDate: string
+  divorcePlace: string
+  childrenIds: number[]
+}
+
+export interface FamilyData {
+  members: Member[]
+  unions: Union[]
 }
 
 export interface FamilyNode {
@@ -27,6 +40,7 @@ export interface FamilyNode {
 }
 
 export interface MemberFormData {
+  id: number
   firstName: string
   middleNames: string[]
   lastName: string
@@ -37,10 +51,18 @@ export interface MemberFormData {
   deathPlace: string
   gender: 'male' | 'female' | 'other'
   isAlive: boolean
-  parent1Id?: number | null
-  parent2Id?: number | null
+  parentUnionId?: number | null
   photoUrl: string
   notes: string
-  spouseIds: number[]
+}
+
+export interface UnionFormData {
+  id: number
+  member1Id: number
+  member2Id: number
+  marriageDate: string
+  marriagePlace: string
+  divorceDate: string
+  divorcePlace: string
   childrenIds: number[]
 }
