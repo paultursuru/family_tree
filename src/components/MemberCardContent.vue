@@ -22,12 +22,16 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { Member } from '@/types'
+import { useDateUtils } from '@/composables/useDateUtils'
 
 interface Props {
   member: Member
 }
 
 const props = defineProps<Props>()
+
+// Use the date utils composable
+const { getShortBirthDeathInfo } = useDateUtils()
 
 const fullName = computed(() => {
   const { firstName, lastName } = props.member
@@ -40,15 +44,7 @@ const initials = computed(() => {
 })
 
 const birthDeathInfo = computed(() => {
-  const { isAlive, birthDate, deathDate } = props.member
-  const birthYear = birthDate ? new Date(birthDate).getFullYear() : '?'
-
-  if (isAlive) {
-    return birthDate ? `b. ${birthYear}` : 'Birth date unknown'
-  }
-
-  const deathYear = deathDate ? new Date(deathDate).getFullYear() : '?'
-  return `${birthYear} - ${deathYear}`
+  return getShortBirthDeathInfo(props.member)
 })
 </script>
 

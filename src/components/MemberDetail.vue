@@ -319,7 +319,7 @@
 import { computed } from 'vue'
 import { Member, Union } from '@/types'
 import { useMemberUtils } from '@/composables/useMemberUtils'
-import UnionForm from './UnionForm.vue'
+import { useDateUtils } from '@/composables/useDateUtils'
 
 interface Props {
   member?: Member
@@ -340,6 +340,12 @@ const emit = defineEmits<Emits>()
 
 // Use the member utils composable
 const { getFullName, getInitials } = useMemberUtils()
+
+// Use the date utils composable
+const { formatDate, formatBirthDeathInfo } = useDateUtils()
+
+// Alias for template compatibility
+const getBirthDeathInfo = formatBirthDeathInfo
 
 const fullName = computed(() => {
   if (!props.member) return ''
@@ -362,16 +368,7 @@ const statusText = computed(() => {
 
 const birthDeathInfo = computed(() => {
   if (!props.member) return ''
-  const member = props.member
-  if (member.isAlive) {
-    return member.birthDate
-      ? `Born ${formatDate(member.birthDate)}`
-      : 'Birth date unknown'
-  } else {
-    const birth = member.birthDate ? formatDate(member.birthDate) : '?'
-    const death = member.deathDate ? formatDate(member.deathDate) : '?'
-    return `${birth} - ${death}`
-  }
+  return formatBirthDeathInfo(props.member, 'year')
 })
 
 const parents = computed(() => {
@@ -471,22 +468,6 @@ const stepSiblings = computed(() => {
     return !!sharedParentId
   })
 })
-
-const getBirthDeathInfo = (member: Member) => {
-  if (member.isAlive) {
-    return member.birthDate
-      ? `b. ${formatDate(member.birthDate)}`
-      : 'Birth date unknown'
-  } else {
-    const birth = member.birthDate ? formatDate(member.birthDate) : '?'
-    const death = member.deathDate ? formatDate(member.deathDate) : '?'
-    return `${birth} - ${death}`
-  }
-}
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).getFullYear().toString()
-}
 
 const getMemberName = (memberId: number) => {
   const member = props.members.find((m) => m.id === memberId)
