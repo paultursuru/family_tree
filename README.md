@@ -27,6 +27,25 @@ A modern, interactive family tree visualization and management application built
 - **Modal Forms**: Clean, organized forms for adding and editing members
 - **Search Results**: Real-time search with member details and quick navigation
 
+## 📅 Calendar Export Feature
+
+You can now export all upcoming anniversaries (birthdays, marriage anniversaries, and memorial dates) to a standard `.ics` calendar file. This file can be imported into Google Calendar, Apple Calendar, Outlook, and most other calendar applications.
+
+### How It Works
+
+- Open the Anniversary Drawer (left side of the app)
+- At the top of the list, click the **Export to Calendar** button
+- This will download a file named `family-anniversaries.ics`
+- Import this file into your favorite calendar app to see all your family anniversaries as events
+
+**Each event includes:**
+
+- The full name(s) of the person or couple
+- The type of anniversary (birthday, marriage, memorial)
+- The date and a description (e.g., age or years married)
+
+This feature helps you never miss an important family date again!
+
 ## 🏗️ Architecture
 
 ### Technology Stack
