@@ -155,51 +155,20 @@
       <!-- Family Relationships -->
       <div class="form-section">
         <h3 class="section-title">Parents</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AutocompleteInput
-            v-model="form.parent1Id"
-            :options="availableParents"
-            label="Parent 1"
-            placeholder="Search for parent 1..."
-            :multiple="false"
-            :exclude-ids="parent1ExcludeIds"
+        <div class="grid grid-cols-1 gap-4">
+          <UnionAutocompleteInput
+            v-model="form.parentUnionId"
+            :unions="unions"
+            :members="members"
+            label="Parent Union"
+            placeholder="Search for parent union..."
+            :exclude-ids="[]"
           />
-
-          <AutocompleteInput
-            v-model="form.parent2Id"
-            :options="availableParents"
-            label="Parent 2"
-            placeholder="Search for parent 2..."
-            :multiple="false"
-            :exclude-ids="parent2ExcludeIds"
-          />
+          <p class="form-hint">
+            Select a union (couple) as the parents. Leave empty if you don't
+            know the parents.
+          </p>
         </div>
-      </div>
-
-      <!-- Spouses -->
-      <div class="form-section">
-        <h3 class="section-title">Spouses</h3>
-        <AutocompleteInput
-          v-model="form.spouseIds"
-          :options="availableSpouses"
-          label="Select Spouses"
-          placeholder="Search for spouses..."
-          :multiple="true"
-          :exclude-ids="spousesExcludeIds"
-        />
-      </div>
-
-      <!-- Children -->
-      <div class="form-section">
-        <h3 class="section-title">Children</h3>
-        <AutocompleteInput
-          v-model="form.childrenIds"
-          :options="availableChildren"
-          label="Select Children"
-          placeholder="Search for children..."
-          :multiple="true"
-          :exclude-ids="childrenExcludeIds"
-        />
       </div>
 
       <!-- Additional Information -->
@@ -245,12 +214,14 @@
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue'
-import { Member, MemberFormData } from '@/types'
+import { Member, MemberFormData, Union } from '@/types'
 import AutocompleteInput from './AutocompleteInput.vue'
+import UnionAutocompleteInput from './UnionAutocompleteInput.vue'
 
 interface Props {
   member?: Member
   members: Member[]
+  unions: Union[]
   isEditing?: boolean
 }
 
@@ -262,7 +233,16 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+const lastMemberId = computed(() => {
+  return props.members.reduce((max, member) => Math.max(max, member.id), 0)
+})
+
+const formId = computed(() => {
+  return props.member?.id || lastMemberId.value + 1
+})
+
 const form = ref<MemberFormData>({
+  id: formId.value,
   firstName: '',
   middleNames: [],
   lastName: '',
@@ -273,12 +253,9 @@ const form = ref<MemberFormData>({
   deathPlace: '',
   gender: 'male',
   isAlive: true,
-  parent1Id: null,
-  parent2Id: null,
+  parentUnionId: null,
   photoUrl: '',
   notes: '',
-  spouseIds: [],
-  childrenIds: [],
 })
 
 const middleNamesString = ref('')
@@ -289,6 +266,7 @@ watch(
   (member) => {
     if (member) {
       form.value = {
+        id: member.id,
         firstName: member.firstName,
         middleNames: [...member.middleNames],
         lastName: member.lastName,
@@ -299,12 +277,9 @@ watch(
         deathPlace: member.deathPlace || '',
         gender: member.gender,
         isAlive: member.isAlive,
-        parent1Id: member.parent1Id,
-        parent2Id: member.parent2Id,
+        parentUnionId: member.parentUnionId,
         photoUrl: member.photoUrl || '',
         notes: member.notes || '',
-        spouseIds: [...member.spouseIds],
-        childrenIds: [...member.childrenIds],
       }
       middleNamesString.value = member.middleNames.join(' ')
     }
@@ -318,73 +293,6 @@ watch(middleNamesString, (value) => {
 })
 
 const isEditing = computed(() => props.isEditing || false)
-
-const availableParents = computed(() => {
-  return props.members.filter(
-    (member) => !props.member || member.id !== props.member.id,
-  )
-})
-
-const availableSpouses = computed(() => {
-  return props.members.filter((member) => {
-    // Cannot be self
-    if (props.member && member.id === props.member.id) {
-      return false
-    }
-    // Cannot be a parent
-    if (
-      member.id === form.value.parent1Id ||
-      member.id === form.value.parent2Id
-    ) {
-      return false
-    }
-    return true
-  })
-})
-
-const availableChildren = computed(() => {
-  return props.members.filter((member) => {
-    // Cannot be self
-    if (props.member && member.id === props.member.id) {
-      return false
-    }
-    // Cannot be a parent
-    if (
-      member.id === form.value.parent1Id ||
-      member.id === form.value.parent2Id
-    ) {
-      return false
-    }
-    // Cannot be a spouse
-    if (form.value.spouseIds.includes(member.id)) {
-      return false
-    }
-    return true
-  })
-})
-
-// Computed properties for exclude IDs to handle undefined values
-const parent1ExcludeIds = computed(() => {
-  return form.value.parent2Id ? [form.value.parent2Id.toString()] : []
-})
-
-const parent2ExcludeIds = computed(() => {
-  return form.value.parent1Id ? [form.value.parent1Id.toString()] : []
-})
-
-const spousesExcludeIds = computed(() => {
-  const excludeIds = []
-  if (form.value.parent1Id) excludeIds.push(form.value.parent1Id.toString())
-  if (form.value.parent2Id) excludeIds.push(form.value.parent2Id.toString())
-  return excludeIds
-})
-
-const childrenExcludeIds = computed(() => {
-  const excludeIds = []
-  if (form.value.parent1Id) excludeIds.push(form.value.parent1Id.toString())
-  if (form.value.parent2Id) excludeIds.push(form.value.parent2Id.toString())
-  return [...excludeIds, ...form.value.spouseIds.map((id) => id.toString())]
-})
 
 const handleSubmit = () => {
   emit('save', { ...form.value })

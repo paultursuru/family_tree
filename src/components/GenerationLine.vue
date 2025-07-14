@@ -4,57 +4,40 @@
       <!-- PARENTS-SPECIFIC LAYOUT -->
       <template v-if="generationType === 'parents' && mainMember">
         <!-- Main Member -->
-        <div class="member-card-wrapper">
-          <div
-            class="member-card"
-            :class="{ selected: isSelected(mainMember) }"
-          >
-            <div class="member-info" @click="setAsMainMember(mainMember)">
-              <MemberCardContent :member="mainMember" />
-              <MemberActions
-                :member="mainMember"
-                @info="showMemberInfo"
-                @edit="editMember"
-                @delete="deleteMember"
-              />
-            </div>
-
-            <!-- Navigation button -->
-            <MoveInTreeButton
-              v-if="canNavigate(mainMember)"
-              :link-type="navigationType"
-              @click.stop="navigateToGeneration(mainMember)"
-            />
-          </div>
-        </div>
+        <MemberCard
+          :member="mainMember"
+          :selected-member-id="selectedMemberId"
+          :card-type="generationType"
+          :unions="unions"
+          :all-members="allMembers"
+          @set-main-member="setAsMainMember"
+          @select-member="selectMember"
+          @edit-member="editMember"
+          @delete-member="deleteMember"
+          @show-member-info="showMemberInfo"
+          @navigate-to-parents="navigateToGeneration"
+          @navigate-to-children="navigateToGeneration"
+        />
 
         <!-- Spouse connector and spouse cards -->
         <div v-if="mainMemberSpouses.length > 0" class="spouse-container">
-          <div
-            v-for="spouse in mainMemberSpouses"
-            :key="spouse.id"
-            class="member-card-wrapper"
-          >
-            <div class="spouse-connector"></div>
-            <div class="member-card" :class="{ selected: isSelected(spouse) }">
-              <div class="member-info" @click="setAsMainMember(spouse)">
-                <MemberCardContent :member="spouse" />
-                <MemberActions
-                  :member="spouse"
-                  @info="showMemberInfo"
-                  @edit="editMember"
-                  @delete="deleteMember"
-                />
-              </div>
-
-              <!-- Navigation button for spouse -->
-              <MoveInTreeButton
-                v-if="canNavigate(spouse)"
-                :link-type="navigationType"
-                @click.stop="navigateToGeneration(spouse)"
-              />
-            </div>
-          </div>
+          <MemberCard
+            v-for="member in mainMemberSpouses"
+            :key="member.id"
+            :member="member"
+            :selected-member-id="selectedMemberId"
+            :card-type="generationType"
+            :is-spouse="true"
+            :unions="unions"
+            :all-members="allMembers"
+            @set-main-member="setAsMainMember"
+            @select-member="selectMember"
+            @edit-member="editMember"
+            @delete-member="deleteMember"
+            @show-member-info="showMemberInfo"
+            @navigate-to-parents="navigateToGeneration"
+            @navigate-to-children="navigateToGeneration"
+          />
         </div>
       </template>
 
@@ -67,37 +50,30 @@
         >
           <!-- Sibling connector line -->
           <div v-if="siblingGroup.members.length > 1" class="sibling-connector">
-            <div class="sibling-line"></div>
+            <div class="sibling-line-single"></div>
+            <div class="sibling-bottom-line"></div>
+          </div>
+          <div v-else class="sibling-connector">
+            <div class="sibling-line-single"></div>
           </div>
 
           <div class="sibling-members">
-            <div
+            <MemberCard
               v-for="member in siblingGroup.members"
               :key="member.id"
-              class="member-card-wrapper"
-            >
-              <div
-                class="member-card"
-                :class="{ selected: isSelected(member) }"
-              >
-                <div class="member-info" @click="setAsMainMember(member)">
-                  <MemberCardContent :member="member" />
-                  <MemberActions
-                    :member="member"
-                    @info="showMemberInfo"
-                    @edit="editMember"
-                    @delete="deleteMember"
-                  />
-                </div>
-
-                <!-- Navigation to children -->
-                <MoveInTreeButton
-                  v-if="canNavigate(member)"
-                  link-type="children"
-                  @click.stop="navigateToGeneration(member)"
-                />
-              </div>
-            </div>
+              :member="member"
+              :selected-member-id="selectedMemberId"
+              :card-type="generationType"
+              :unions="unions"
+              :all-members="allMembers"
+              @set-main-member="setAsMainMember"
+              @select-member="selectMember"
+              @edit-member="editMember"
+              @delete-member="deleteMember"
+              @show-member-info="showMemberInfo"
+              @navigate-to-parents="navigateToGeneration"
+              @navigate-to-children="navigateToGeneration"
+            />
           </div>
         </div>
       </template>
@@ -111,9 +87,11 @@ import { Member } from '@/types'
 import MemberCardContent from './MemberCardContent.vue'
 import MemberActions from './MemberActions.vue'
 import MoveInTreeButton from './MoveInTreeButton.vue'
+import MemberCard from './MemberCard.vue'
 
 interface Props {
   members: Member[]
+  unions: Union[]
   allMembers: Member[]
   selectedMemberId?: number
   mainMemberId?: number
@@ -144,8 +122,20 @@ const mainMember = computed(() => {
 
 const mainMemberSpouses = computed(() => {
   if (!mainMember.value) return []
-  return mainMember.value.spouseIds
-    .map((id) => props.allMembers.find((m) => m.id === id))
+  const memberUnions = props.unions.filter(
+    (union) =>
+      union.member1Id === mainMember.value!.id ||
+      union.member2Id === mainMember.value!.id,
+  )
+
+  return memberUnions
+    .map((union) => {
+      const partnerId =
+        union.member1Id === mainMember.value!.id
+          ? union.member2Id
+          : union.member1Id
+      return props.allMembers.find((m) => m.id === partnerId)
+    })
     .filter((m): m is Member => !!m)
 })
 
@@ -162,18 +152,12 @@ const siblingGroups = computed(() => {
   children.forEach((member) => {
     if (processed.has(member.id)) return
 
-    // Find all direct siblings (same parents)
+    // Find all direct siblings (same parent union)
     const siblings = children.filter((other) => {
-      if (!member.parent1Id || !member.parent2Id) return other.id === member.id
+      if (!member.parentUnionId) return other.id === member.id
 
-      // Group members that have the same two parents, order doesn't matter
-      const sameParents =
-        other.parent1Id === member.parent1Id &&
-        other.parent2Id === member.parent2Id
-      const sameParentsSwapped =
-        other.parent1Id === member.parent2Id &&
-        other.parent2Id === member.parent1Id
-      return sameParents || sameParentsSwapped
+      // Group members that have the same parent union
+      return other.parentUnionId === member.parentUnionId
     })
 
     if (siblings.length > 0) {
@@ -201,9 +185,19 @@ const isSelected = (member: Member) => {
 
 const canNavigate = (member: Member) => {
   if (props.generationType === 'parents') {
-    return member.parent1Id !== undefined || member.parent2Id !== undefined
+    return member.parentUnionId !== undefined
   } else {
-    return member.childrenIds.length > 0
+    // Check for children through unions
+    const memberUnions = props.unions.filter(
+      (union) => union.member1Id === member.id || union.member2Id === member.id,
+    )
+
+    return memberUnions.some(
+      (union) =>
+        union.childrenIds &&
+        Array.isArray(union.childrenIds) &&
+        union.childrenIds.length > 0,
+    )
   }
 }
 
@@ -228,7 +222,7 @@ const navigateToGeneration = (member: Member) => {
 }
 
 .generation-container {
-  @apply flex items-center justify-center gap-6 flex-wrap;
+  @apply flex items-center justify-center flex-wrap;
 }
 
 .member-card-wrapper {
@@ -263,17 +257,20 @@ const navigateToGeneration = (member: Member) => {
 }
 
 .sibling-group {
-  @apply flex flex-col items-center;
+  @apply flex flex-col items-center mr-6;
 }
 
 .sibling-connector {
-  @apply w-full flex justify-center mb-2;
+  @apply w-full flex flex-col justify-center mb-2 items-center;
   /* position: relative; */
 }
 
-.sibling-line {
-  @apply h-0.5 bg-gray-600 rounded-full;
-  min-width: 200px;
+.sibling-line-single {
+  @apply h-5 w-0.5 bg-gray-600 rounded-full;
+}
+
+.sibling-bottom-line {
+  @apply h-0.5 bg-gray-600 rounded-full w-48;
 }
 
 .sibling-members {

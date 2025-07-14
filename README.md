@@ -83,7 +83,6 @@ interface Member {
   isAlive: boolean
   parent1Id?: number
   parent2Id?: number
-  spouseIds: number[]
   childrenIds: number[]
   photoUrl?: string
   notes?: string
