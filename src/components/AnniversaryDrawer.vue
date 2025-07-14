@@ -84,7 +84,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { Member, Union, AnniversaryInfo } from '@/types'
-import { useMemberUtils } from '@/composables/useMemberUtils'
+import { useMemberInfo } from '@/composables/useMemberInfo'
 import { useCalendarExport } from '@/composables/useCalendarExport'
 import { useDateUtils } from '@/composables/useDateUtils'
 
@@ -110,7 +110,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 // Use the member utils composable
-const { getFullName } = useMemberUtils()
+const { getFullName } = useMemberInfo()
 
 // Use the calendar export composable
 const { exportToCalendar } = useCalendarExport()

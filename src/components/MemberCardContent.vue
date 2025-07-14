@@ -22,7 +22,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { Member } from '@/types'
-import { useDateUtils } from '@/composables/useDateUtils'
+import { useMemberInfo } from '@/composables/useMemberInfo'
 
 interface Props {
   member: Member
@@ -30,17 +30,16 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Use the date utils composable
-const { getShortBirthDeathInfo } = useDateUtils()
+// Use the member info composable
+const { getShortName, getMemberInitials, getShortBirthDeathInfo } =
+  useMemberInfo()
 
 const fullName = computed(() => {
-  const { firstName, lastName } = props.member
-  return `${firstName} ${lastName}`
+  return getShortName(props.member)
 })
 
 const initials = computed(() => {
-  const { firstName, lastName } = props.member
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`
+  return getMemberInitials(props.member)
 })
 
 const birthDeathInfo = computed(() => {

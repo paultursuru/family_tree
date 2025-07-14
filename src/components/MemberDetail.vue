@@ -318,8 +318,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { Member, Union } from '@/types'
-import { useMemberUtils } from '@/composables/useMemberUtils'
-import { useDateUtils } from '@/composables/useDateUtils'
+import { useMemberInfo } from '@/composables/useMemberInfo'
 
 interface Props {
   member?: Member
@@ -338,37 +337,34 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// Use the member utils composable
-const { getFullName, getInitials } = useMemberUtils()
-
-// Use the date utils composable
-const { formatDate, formatBirthDeathInfo } = useDateUtils()
-
-// Alias for template compatibility
-const getBirthDeathInfo = formatBirthDeathInfo
+// Use the member info composable
+const {
+  getFullName,
+  getInitials,
+  getStatusText,
+  getBirthDeathInfo,
+  getFullNameWithMiddle,
+  getMemberInitials,
+} = useMemberInfo()
 
 const fullName = computed(() => {
   if (!props.member) return ''
-  const member = props.member
-  const middleNames =
-    member.middleNames.length > 0 ? ` ${member.middleNames.join(' ')}` : ''
-  return `${member.firstName}${middleNames} ${member.lastName}`
+  return getFullNameWithMiddle(props.member)
 })
 
 const initials = computed(() => {
   if (!props.member) return ''
-  const member = props.member
-  return `${member.firstName.charAt(0)}${member.lastName.charAt(0)}`
+  return getMemberInitials(props.member)
 })
 
 const statusText = computed(() => {
   if (!props.member) return ''
-  return props.member.isAlive ? 'Living' : 'Deceased'
+  return getStatusText(props.member)
 })
 
 const birthDeathInfo = computed(() => {
   if (!props.member) return ''
-  return formatBirthDeathInfo(props.member, 'year')
+  return getBirthDeathInfo(props.member, 'year')
 })
 
 const parents = computed(() => {

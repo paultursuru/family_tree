@@ -91,7 +91,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { Member } from '@/types'
-import { useMemberUtils } from '@/composables/useMemberUtils'
+import { useMemberInfo } from '@/composables/useMemberInfo'
 
 interface Props {
   modelValue: string[] | string | number | number[] | undefined | null
@@ -119,7 +119,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 // Use the member utils composable
-const { getFullName } = useMemberUtils()
+const { getFullName } = useMemberInfo()
 
 const inputRef = ref<HTMLInputElement>()
 const searchQuery = ref('')

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Member } from '@/types'
 import { ref, computed } from 'vue'
-import { useMemberUtils } from '@/composables/useMemberUtils'
+import { useMemberInfo } from '@/composables/useMemberInfo'
 
 interface Props {
   showAddForm: boolean
@@ -23,7 +23,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 // Use the member utils composable
-const { getFullName } = useMemberUtils()
+const { getFullName } = useMemberInfo()
 
 const searchQuery = ref('')
 const showSearchResults = ref(false)

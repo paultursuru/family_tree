@@ -289,7 +289,7 @@ import {
   FamilyData,
 } from '@/types'
 import { useFileOperations } from '@/composables/useFileOperations'
-import { useMemberUtils } from '@/composables/useMemberUtils'
+import { useMemberInfo } from '@/composables/useMemberInfo'
 import { useDataPersistence } from '@/composables/useDataPersistence'
 import Header from '@/components/Header.vue'
 import FamilyTree from '@/components/FamilyTree.vue'
@@ -328,7 +328,7 @@ const showAnniversaryDrawer = ref(false)
 // Composables
 const { fileInput, exportToJson, importFromJson, handleFileImport } =
   useFileOperations()
-const { getFullName } = useMemberUtils()
+const { getFullName } = useMemberInfo()
 const {
   members,
   unions,
