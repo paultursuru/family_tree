@@ -66,3 +66,21 @@ export interface UnionFormData {
   divorcePlace: string
   childrenIds: number[]
 }
+
+export interface AnniversaryInfo {
+  id: string
+  type: 'birthday' | 'marriage' | 'death' | 'other'
+  title: string
+  date: Date
+  details: string
+  daysUntil: number
+}
+
+export interface CalendarEvent {
+  uid: string
+  summary: string
+  description: string
+  startDate: string // YYYYMMDD format
+  endDate: string // YYYYMMDD format
+  categories: string[]
+}
